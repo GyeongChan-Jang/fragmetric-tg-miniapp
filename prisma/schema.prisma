@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id
+  username        String?
+  first_name      String?
+  last_name       String?
+  created_at      DateTime @default(now())
+  clicker_score   Int      @default(0)
+  betting_score   Int      @default(0)
+  total_score     Int      @default(0)
+  last_click_time DateTime @default(now())
+  daily_bets      Int      @default(0)
+  last_bet_reset  DateTime @default(now())
+  referral_code   String   @unique
+  referrer_id     String?
+  
+  bets      Bet[]
+  tasks     UserTask[]
+  referrals User[]      @relation("UserReferrals")
+  referrer  User?       @relation("UserReferrals", fields: [referrer_id], references: [id], onDelete: SetNull)
+
+  @@index([total_score], name: "total_score_idx")
+}
+
+model Bet {
+  id           String   @id @default(uuid())
+  user_id      String
+  amount       Int      @default(10)
+  type         String   // "UP" or "DOWN"
+  created_at   DateTime @default(now())
+  result       String?  // "WIN" or "LOSE" or "PENDING"
+  score_earned Int      @default(0)
+  sol_price_start  Float
+  sol_price_end    Float?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id], name: "user_id_idx")
+}
+
+model Task {
+  id           String @id @default(uuid())
+  name         String
+  description  String
+  score_reward Int    @default(10)
+  type         String // "DAILY", "SOCIAL", "ONE_TIME"
+  task_key     String @unique
+
+  user_tasks UserTask[]
+}
+
+model UserTask {
+  id          String   @id @default(uuid())
+  user_id     String
+  task_id     String
+  completed   Boolean  @default(false)
+  completed_at DateTime?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, task_id])
+}

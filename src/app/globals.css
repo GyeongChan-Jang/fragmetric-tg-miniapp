@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Telegram 테마 색상 - 다크 모드 */
+  --tg-theme-bg-color: #212121;
+  --tg-theme-text-color: #ffffff;
+  --tg-theme-hint-color: #aaaaaa;
+  --tg-theme-link-color: #8774e1;
+  --tg-theme-button-color: #8774e1;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #181818;
+
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 33, 33, 33;
+  --accent-color: 135, 116, 225;
+}
+
+/* 다크 모드에서는 전역 텍스트 색상 설정, 라이트 모드에서는 기본 검정색으로 */
+body {
+  color: rgb(var(--foreground-rgb));
+  background: rgb(var(--background-rgb));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans',
+    'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior: none;
+}
+
+/* 클리커 게임 컨테이너에 라이트 모드 적용 */
+.flex.flex-col.items-center.justify-center.h-full.w-full {
+  background-color: white;
+  color: #333;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.tg-btn {
+  background-color: var(--tg-theme-button-color);
+  color: var(--tg-theme-button-text-color);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 20px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.tg-btn:hover {
+  opacity: 0.9;
+}
+
+.tg-btn:active {
+  opacity: 0.8;
+}
+
+.tg-card {
+  background-color: var(--tg-theme-secondary-bg-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tg-header {
+  background-color: var(--tg-theme-secondary-bg-color);
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.confetti-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* 랭크 배지 스타일 */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.rank-bronze {
+  background-color: #cd7f32;
+  color: white;
+}
+
+.rank-silver {
+  background-color: #c0c0c0;
+  color: white;
+}
+
+.rank-gold {
+  background-color: #ffd700;
+  color: black;
+}
+
+.rank-platinum {
+  background-color: #e5e4e2;
+  color: black;
+  background-image: linear-gradient(45deg, #e5e4e2, #bbb9b7);
+}
+
+.rank-diamond {
+  background-color: #b9f2ff;
+  color: black;
+  background-image: linear-gradient(45deg, #b9f2ff, #8bebfa);
+}
+
+/* 3D 효과를 위한 스타일 */
+.perspective-500 {
+  perspective: 500px;
+}
+
+/* TON Connect 버튼 스타일링 */
+.ton-button {
+  background-color: #0088cc;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 500;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ton-button:hover {
+  background-color: #0077b5;
+}
+
+.ton-button.connected {
+  background-color: #17c964;
+}
+
+.ton-button.connected:hover {
+  background-color: #13b058;
+}
+
+/* TON Connect 기본 버튼 커스터마이징 */
+.tc-button {
+  max-width: 180px !important;
+  min-width: 120px !important;
+  border-radius: 8px !important;
+}
+
+.tc-button--withBalance {
+  padding: 8px 16px !important;
+}
+
+.ton-connect-ui .header {
+  background-color: var(--tg-theme-bg-color, #212121) !important;
+  color: var(--tg-theme-text-color, #ffffff) !important;
+}
