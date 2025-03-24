@@ -13,7 +13,7 @@ export const Account: React.FC = () => {
 
   useEffect(() => {
     fetchTasks()
-  }, [])
+  }, [fetchTasks])
 
   const SubTabButton: React.FC<{
     label: string

@@ -4,10 +4,21 @@ import { useWalletStore } from '@/store/walletStore'
 
 export const useTonWalletConnect = () => {
   const [tonConnectUI] = useTonConnectUI()
-  const { setIsConnected, setIsConnecting, setTonBalance, setError, setAddress, reset } = useWalletStore()
+  const { setIsConnected, setIsConnecting, setTonBalance, setError, setAddress, reset, isConnected } = useWalletStore()
 
   // 지갑 연결 상태 변화 감지
   useEffect(() => {
+    // TON 잔액 조회 함수를 useEffect 내부로 이동
+    const fetchTonBalance = async (address: string) => {
+      try {
+        // 현재는 임시로 랜덤 값 설정 (실제 구현에서는 TON API 호출)
+        const mockBalance = Math.random() * 10
+        setTonBalance(mockBalance)
+      } catch (error) {
+        console.error('Error fetching TON balance:', error)
+      }
+    }
+
     const unsubscribe = tonConnectUI.onStatusChange((wallet) => {
       if (wallet) {
         // 지갑 연결됨
@@ -26,21 +37,7 @@ export const useTonWalletConnect = () => {
     return () => {
       unsubscribe()
     }
-  }, [tonConnectUI])
-
-  // TON 잔액 조회 함수 (예시)
-  const fetchTonBalance = async (address: string) => {
-    try {
-      // 여기에 실제 TON 잔액 조회 로직 구현
-      // API 예시: const response = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${address}`);
-
-      // 현재는 임시로 랜덤 값 설정
-      const mockBalance = Math.random() * 10
-      setTonBalance(mockBalance)
-    } catch (error) {
-      console.error('Error fetching TON balance:', error)
-    }
-  }
+  }, [tonConnectUI, setIsConnected, setAddress, setError, reset, setTonBalance])
 
   // 지갑 연결 함수
   const connectWallet = () => {
@@ -66,6 +63,7 @@ export const useTonWalletConnect = () => {
   return {
     connectWallet,
     disconnectWallet,
+    connected: isConnected,
     isWalletModalOpen: !!tonConnectUI.modalState,
     closeModal: tonConnectUI.closeModal
   }

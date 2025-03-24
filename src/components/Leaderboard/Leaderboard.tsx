@@ -11,7 +11,7 @@ export const Leaderboard: React.FC = () => {
 
   useEffect(() => {
     fetchLeaderboard()
-  }, [])
+  }, [filterType, fetchLeaderboard])
 
   const getTopEntries = (count: number) => {
     return entries.slice(0, count)

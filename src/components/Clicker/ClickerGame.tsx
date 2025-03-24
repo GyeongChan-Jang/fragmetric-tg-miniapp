@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence, useSpring } from 'framer-motion'
 import Confetti from 'react-confetti'
+import Image from 'next/image'
 import { useClickerStore } from '@/store/clickerStore'
 import { useUserStore } from '@/store/userStore'
 import { MAX_BOOST } from '@/store/userStore'
@@ -13,7 +14,7 @@ interface ClickPoint {
 }
 
 export const ClickerGame: React.FC = () => {
-  const { user, updateClickerScore, boost, useBoost, refreshBoost, getRank } = useUserStore()
+  const { user, updateClickerScore, boost, useBoost: decreaseBoost, refreshBoost, getRank } = useUserStore()
   const { incrementClicks, setIsAnimating, isAnimating } = useClickerStore()
 
   const [windowDimensions, setWindowDimensions] = useState<{ width: number; height: number }>({
@@ -26,6 +27,7 @@ export const ClickerGame: React.FC = () => {
   const [lastMilestoneReached, setLastMilestoneReached] = useState(0)
   const [showUpgrades, setShowUpgrades] = useState(false)
   const buttonRef = useRef<HTMLDivElement>(null)
+  const clickSound = useRef<HTMLAudioElement>(null)
 
   // 버튼 틸트 애니메이션을 위한 상태
   const [tiltX, setTiltX] = useState(0)
@@ -36,7 +38,9 @@ export const ClickerGame: React.FC = () => {
   const springTiltY = useSpring(0, { stiffness: 300, damping: 20 })
 
   const rank = getRank()
-  const MILESTONES = [100, 500, 1000, 5000, 10000]
+
+  // MILESTONES를 useMemo로 이동
+  const MILESTONES = useMemo(() => [100, 500, 1000, 5000, 10000], [])
 
   // springTiltX, springTiltY 값이 변경될 때마다 tiltX, tiltY 값을 업데이트
   useEffect(() => {
@@ -81,12 +85,29 @@ export const ClickerGame: React.FC = () => {
         break
       }
     }
-  }, [user?.clicker_score, lastMilestoneReached])
+  }, [user?.clicker_score, lastMilestoneReached, MILESTONES, user])
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (boost <= 0) return
+    if (isAnimating) return
 
-    // 클릭 애니메이션 효과
+    if (clickSound.current) {
+      clickSound.current.currentTime = 0
+      clickSound.current.play().catch((err: Error) => console.error('Audio play failed:', err))
+    }
+
+    setIsAnimating(true)
+
+    // 올바른 메서드명 사용 (React Hook이 아님)
+    const boostAmount = boost > 0 ? 1 : 0
+    const points = incrementClicks() + boostAmount
+    updateClickerScore(points)
+
+    // boost 사용하기 (React Hook이 아닌 상태 업데이트 함수)
+    if (boost > 0) {
+      decreaseBoost(1)
+    }
+
+    // 클릭 포인트 애니메이션 추가
     const rect = buttonRef.current?.getBoundingClientRect()
     if (!rect) return
 
@@ -94,12 +115,6 @@ export const ClickerGame: React.FC = () => {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
 
-    // 점수 추가
-    incrementClicks()
-    updateClickerScore(1)
-    useBoost(1)
-
-    // 클릭 포인트 애니메이션 추가
     const newPoint: ClickPoint = {
       id: nextId,
       x,
@@ -115,7 +130,6 @@ export const ClickerGame: React.FC = () => {
     }, 1000)
 
     // 클릭 애니메이션 시작
-    setIsAnimating(true)
     setTimeout(() => setIsAnimating(false), 300)
 
     // 클릭 위치에 따른 틸트 효과 계산
@@ -171,6 +185,8 @@ export const ClickerGame: React.FC = () => {
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-white text-gray-800 p-4 rounded-lg">
+      <audio ref={clickSound} preload="auto" src="/sounds/click.mp3" />
+
       {showConfetti && (
         <Confetti
           width={windowDimensions.width}
@@ -234,10 +250,12 @@ export const ClickerGame: React.FC = () => {
           className="h-48 w-48 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl perspective-500"
           onClick={handleClick}
         >
-          <img
+          <Image
             src="/images/topu-face-sang.png"
             alt="Topu"
-            className="h-40 w-40 object-contain"
+            width={160}
+            height={160}
+            className="object-contain"
             onError={(e) => {
               const target = e.target as HTMLImageElement
               target.src =

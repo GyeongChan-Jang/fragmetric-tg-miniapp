@@ -3,6 +3,7 @@ import { useWalletStore } from '@/store/walletStore'
 import { TonConnectButton } from '@tonconnect/ui-react'
 import { FiExternalLink, FiCheckCircle } from 'react-icons/fi'
 import { FC } from 'react'
+import Image from 'next/image'
 
 interface TonWalletButtonProps {
   customStyle?: boolean
@@ -25,31 +26,29 @@ const TonWalletButton: FC<TonWalletButtonProps> = ({ customStyle = true }) => {
 
   // 커스텀 버튼 스타일
   return (
-    <div>
-      {error ? (
+    <div className="flex flex-col">
+      <button
+        onClick={isConnected ? disconnectWallet : connectWallet}
+        className={`ton-wallet-button flex items-center justify-center px-4 py-2 rounded-lg transition-colors ${
+          isConnected ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'
+        } text-white font-medium`}
+      >
         <div className="flex items-center">
-          <button
-            onClick={() => window.open('https://wallet.ton.org', '_blank')}
-            className="mr-2 py-2 px-3 bg-purple-500 text-white rounded-md text-sm flex items-center"
-          >
-            <FiExternalLink className="mr-1" /> TON Wallet
-          </button>
-          <button onClick={connectWallet} className="py-2 px-4 bg-blue-500 text-white rounded-md text-sm">
-            Retry
-          </button>
+          <Image src="/images/ton-diamond.svg" width={24} height={24} alt="TON" className="mr-2" />
+          {isConnected ? 'Disconnect Wallet' : 'Connect TON Wallet'}
         </div>
-      ) : isConnected && address ? (
-        <button
-          onClick={disconnectWallet}
-          className="py-2 px-4 bg-green-500 text-white rounded-md text-sm flex items-center"
-        >
-          <FiCheckCircle className="mr-1" />
-          {shortenAddress(address)} • {tonBalance.toFixed(2)} TON
-        </button>
-      ) : (
-        <button onClick={connectWallet} className="py-2 px-4 bg-blue-500 text-white rounded-md text-sm">
-          Connect TON Wallet
-        </button>
+      </button>
+      {isConnected && (
+        <div className="mt-2 text-sm text-gray-700">
+          <div className="flex items-center">
+            <span className="font-medium mr-1">Address:</span>
+            <span className="font-mono">{shortenAddress(address)}</span>
+          </div>
+          <div className="flex items-center">
+            <span className="font-medium mr-1">Balance:</span>
+            <span>{tonBalance !== null ? `${tonBalance.toFixed(2)} TON` : 'Loading...'}</span>
+          </div>
+        </div>
       )}
     </div>
   )

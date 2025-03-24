@@ -48,7 +48,7 @@ export default function Home() {
     }
 
     loadUserData()
-  }, [])
+  }, [setUser])
 
   // 활성화된 탭에 따라 내용 렌더링
   const renderContent = () => {

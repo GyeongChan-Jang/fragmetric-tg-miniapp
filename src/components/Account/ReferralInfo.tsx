@@ -76,7 +76,7 @@ export const ReferralInfo: React.FC = () => {
             <div>
               <h3 className="font-medium">Friends Register</h3>
               <p className="text-sm text-gray-600">
-                When they register using your link, they'll be connected to your account.
+                When they register using your link, they&apos;ll be connected to your account.
               </p>
             </div>
           </div>
@@ -87,7 +87,7 @@ export const ReferralInfo: React.FC = () => {
             </div>
             <div>
               <h3 className="font-medium">Earn Rewards</h3>
-              <p className="text-sm text-gray-600">You'll earn points when they play games and complete tasks!</p>
+              <p className="text-sm text-gray-600">You&apos;ll earn points when they play games and complete tasks!</p>
             </div>
           </div>
         </div>
@@ -127,7 +127,7 @@ export const ReferralInfo: React.FC = () => {
           </div>
         ) : (
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
-            <p className="text-gray-500 mb-2">You don't have any referrals yet</p>
+            <p className="text-gray-500 mb-2">You don&apos;t have any referrals yet</p>
             <p className="text-sm text-gray-600">Share your link to start earning rewards!</p>
           </div>
         )}
