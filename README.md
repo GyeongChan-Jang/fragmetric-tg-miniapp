@@ -1,3 +1,103 @@
+# Fragmetric Telegram Mini App
+
+Fragmetric Telegram Mini App은 텔레그램 미니앱 플랫폼을 위한 게임과 기능을 제공하는 프로젝트입니다.
+
+## 주요 기능
+
+- 클리커 게임: 버튼을 탭하여 점수 획득
+- 베팅 시스템: SOL 가격 변동 예측 게임
+- 리더보드: 글로벌 및 친구 랭킹 시스템
+- 계정 관리: 사용자 정보 및 추천 시스템
+
+## 기술 스택
+
+- Next.js 14
+- TypeScript
+- Tailwind CSS
+- Zustand (상태 관리)
+- Framer Motion (애니메이션)
+- Supabase (데이터베이스)
+
+## Supabase 연동 가이드
+
+이 프로젝트는 Supabase를 데이터베이스로 사용합니다. 다음은 Supabase 설정 및 연동 방법입니다.
+
+### 1. 환경 설정
+
+`.env.local` 파일에 Supabase 프로젝트의 URL과 API 키를 설정해야 합니다:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+### 2. 필요한 테이블
+
+Supabase에서 다음 테이블을 생성해야 합니다:
+
+- `users`: 사용자 정보 테이블
+
+  - id (primary key)
+  - username (text, nullable)
+  - first_name (text, nullable)
+  - last_name (text, nullable)
+  - created_at (timestamp with timezone)
+  - clicker_score (integer)
+  - betting_score (integer)
+  - total_score (integer)
+  - daily_bets (integer)
+  - last_bet_reset (timestamp, nullable)
+  - referrer_id (text, foreign key, nullable)
+  - referral_code (text, unique)
+
+- `tasks`: 태스크 정보 테이블
+
+  - id (primary key)
+  - title (text)
+  - description (text)
+  - reward (integer)
+  - task_type (text)
+
+- `user_tasks`: 사용자와 태스크 간의 관계 테이블
+  - id (primary key)
+  - user_id (text, foreign key)
+  - task_id (uuid, foreign key)
+  - completed (boolean)
+
+### 3. 사용 방법
+
+Supabase 클라이언트는 `src/lib/supabase.ts`에 설정되어 있으며, API 라우트에서 사용할 수 있습니다:
+
+```typescript
+import { supabase } from '@/lib/supabase'
+
+// 데이터 조회 예시
+const { data, error } = await supabase.from('users').select('*').eq('id', userId).single()
+```
+
+## 개발 시작하기
+
+1. 의존성 설치:
+
+   ```
+   pnpm install
+   ```
+
+2. 개발 서버 실행:
+
+   ```
+   pnpm dev
+   ```
+
+3. 빌드:
+   ```
+   pnpm build
+   ```
+
+## 라이센스
+
+이 프로젝트는 [MIT 라이센스](LICENSE)를 따릅니다.
+
 # Telegram Mini Apps Next.js Template
 
 This template demonstrates how developers can implement a web application on the

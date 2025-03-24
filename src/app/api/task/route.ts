@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
 // 유저의 태스크 목록 가져오기
 export async function GET(request: NextRequest) {
@@ -11,21 +11,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
 
-    // 유저의 태스크 목록 가져오기
-    const userTasks = await prisma.userTask.findMany({
-      where: { user_id: userId },
-      include: { task: true }
-    })
+    // 사용자의 모든 태스크 조회 (기본 태스크 및 완료 상태 포함)
+    const { data, error } = await supabase
+      .from('user_tasks')
+      .select(
+        `
+        *,
+        task:tasks(*)
+      `
+      )
+      .eq('user_id', userId)
 
-    return NextResponse.json({ userTasks })
+    if (error) {
+      console.error('Error fetching tasks:', error)
+      return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
+    }
+
+    // 응답 데이터 포맷팅
+    const tasks = data.map((item) => ({
+      id: item.task?.id,
+      title: item.task?.title,
+      description: item.task?.description,
+      reward: item.task?.reward,
+      completed: item.completed,
+      user_task_id: item.id
+    }))
+
+    return NextResponse.json({ tasks })
   } catch (error) {
-    console.error('Error fetching user tasks:', error)
-    return NextResponse.json({ error: 'Failed to fetch user tasks' }, { status: 500 })
+    console.error('Error fetching tasks:', error)
+    return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
   }
 }
 
 // 태스크 완료 처리
-export async function POST(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const { userId, taskId } = body
@@ -34,65 +54,67 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID and Task ID are required' }, { status: 400 })
     }
 
-    // 유저 태스크 찾기
-    const userTask = await prisma.userTask.findUnique({
-      where: {
-        user_id_task_id: {
-          user_id: userId,
-          task_id: taskId
-        }
-      },
-      include: { task: true }
-    })
+    // 해당 태스크가 이미 완료되었는지 확인
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('user_tasks')
+      .select('id, completed, task:tasks(reward)')
+      .eq('user_id', userId)
+      .eq('task_id', taskId)
+      .single()
 
-    if (!userTask) {
-      return NextResponse.json({ error: 'User task not found' }, { status: 404 })
+    if (fetchError) {
+      console.error('Error fetching task:', fetchError)
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
     }
 
-    // 이미 완료된 태스크인지 확인
-    if (userTask.completed) {
+    // 이미 완료된 태스크인 경우
+    if (existingTask?.completed) {
       return NextResponse.json({ error: 'Task already completed' }, { status: 400 })
     }
 
-    // 태스크가 일일 태스크이고 오늘 이미 완료했는지 확인
-    if (userTask.task.type === 'DAILY' && userTask.completed_at) {
-      const completedDate = new Date(userTask.completed_at)
-      const today = new Date()
+    // 트랜잭션 처리: 태스크 완료 및 사용자 점수 업데이트
+    // task 필드는 배열이므로 첫 번째 요소의 reward 값을 사용
+    const reward = existingTask?.task?.[0]?.reward || 0
 
-      // 날짜만 비교 (시간 제외)
-      if (
-        completedDate.getFullYear() === today.getFullYear() &&
-        completedDate.getMonth() === today.getMonth() &&
-        completedDate.getDate() === today.getDate()
-      ) {
-        return NextResponse.json({ error: 'Daily task already completed today' }, { status: 400 })
-      }
+    // 1. 태스크 완료 처리
+    const { error: updateTaskError } = await supabase
+      .from('user_tasks')
+      .update({ completed: true })
+      .eq('id', existingTask?.id)
+
+    if (updateTaskError) {
+      console.error('Error updating task completion status:', updateTaskError)
+      return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
     }
 
-    // 태스크 완료 처리
-    const updatedUserTask = await prisma.userTask.update({
-      where: {
-        user_id_task_id: {
-          user_id: userId,
-          task_id: taskId
-        }
-      },
-      data: {
-        completed: true,
-        completed_at: new Date()
-      },
-      include: { task: true }
-    })
+    // 2. 사용자 점수 업데이트
+    const { data: user, error: fetchUserError } = await supabase
+      .from('users')
+      .select('total_score')
+      .eq('id', userId)
+      .single()
 
-    // 유저의 점수 업데이트
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        total_score: { increment: userTask.task.score_reward }
-      }
-    })
+    if (fetchUserError) {
+      console.error('Error fetching user:', fetchUserError)
+      return NextResponse.json({ error: 'Failed to fetch user data' }, { status: 500 })
+    }
 
-    return NextResponse.json({ userTask: updatedUserTask })
+    const { error: updateUserError } = await supabase
+      .from('users')
+      .update({
+        total_score: (user?.total_score || 0) + reward
+      })
+      .eq('id', userId)
+
+    if (updateUserError) {
+      console.error('Error updating user score:', updateUserError)
+      return NextResponse.json({ error: 'Failed to update user score' }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Task completed and ${reward} points added to user's score`
+    })
   } catch (error) {
     console.error('Error completing task:', error)
     return NextResponse.json({ error: 'Failed to complete task' }, { status: 500 })
@@ -100,50 +122,57 @@ export async function POST(request: NextRequest) {
 }
 
 // 태스크 생성 (어드민용)
-export async function PUT(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, description, score_reward, type, task_key } = body
+    const { title, description, reward, taskType } = body
 
-    if (!name || !description || !type || !task_key) {
-      return NextResponse.json({ error: 'Name, description, type, and task_key are required' }, { status: 400 })
-    }
-
-    // 같은 task_key로 이미 존재하는지 확인
-    const existingTask = await prisma.task.findUnique({
-      where: { task_key }
-    })
-
-    if (existingTask) {
-      return NextResponse.json({ error: 'Task with this task_key already exists' }, { status: 400 })
+    if (!title || !description) {
+      return NextResponse.json({ error: 'Title and description are required' }, { status: 400 })
     }
 
     // 새 태스크 생성
-    const newTask = await prisma.task.create({
-      data: {
-        name,
-        description,
-        score_reward: score_reward || 10,
-        type,
-        task_key
-      }
-    })
+    const { data: newTask, error: createTaskError } = await supabase
+      .from('tasks')
+      .insert([
+        {
+          title,
+          description,
+          reward: reward || 10,
+          task_type: taskType || 'general'
+        }
+      ])
+      .select()
+      .single()
 
-    // 모든 유저에게 태스크 할당
-    const users = await prisma.user.findMany()
-    await Promise.all(
-      users.map((user) =>
-        prisma.userTask.create({
-          data: {
-            user_id: user.id,
-            task_id: newTask.id,
-            completed: false
-          }
-        })
-      )
-    )
+    if (createTaskError) {
+      console.error('Error creating task:', createTaskError)
+      return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
+    }
 
-    return NextResponse.json({ task: newTask })
+    // 모든 사용자에게 태스크 할당
+    const { data: users, error: usersError } = await supabase.from('users').select('id')
+
+    if (usersError) {
+      console.error('Error fetching users:', usersError)
+      return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
+    }
+
+    // 각 사용자에게 태스크 할당
+    const userTasksData = users.map((user) => ({
+      user_id: user.id,
+      task_id: newTask.id,
+      completed: false
+    }))
+
+    const { error: createUserTasksError } = await supabase.from('user_tasks').insert(userTasksData)
+
+    if (createUserTasksError) {
+      console.error('Error assigning tasks to users:', createUserTasksError)
+      return NextResponse.json({ error: 'Failed to assign tasks to users' }, { status: 500 })
+    }
+
+    return NextResponse.json(newTask)
   } catch (error) {
     console.error('Error creating task:', error)
     return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })

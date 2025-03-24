@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
 // 현재 유저 정보 가져오기
 export async function GET(request: NextRequest) {
@@ -11,15 +11,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId }
-    })
+    const { data: user, error } = await supabase.from('users').select('*').eq('id', userId).single()
 
-    if (!user) {
+    if (error) {
+      console.error('Error fetching user:', error)
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ user })
+    return NextResponse.json(user)
   } catch (error) {
     console.error('Error fetching user:', error)
     return NextResponse.json({ error: 'Failed to fetch user' }, { status: 500 })
@@ -36,25 +35,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 })
     }
 
-    // Check if user already exists
-    let user = await prisma.user.findUnique({
-      where: { id }
-    })
+    // 유저가 이미 존재하는지 확인
+    const { data: existingUser, error: findError } = await supabase.from('users').select('*').eq('id', id).single()
 
     let referrerId = null
 
-    // If referrer code is provided, find the referrer
-    if (referrer_code && !user) {
-      const referrer = await prisma.user.findUnique({
-        where: { referral_code: referrer_code }
-      })
+    // 추천인 코드가 제공되었고 신규 사용자인 경우 추천인 찾기
+    if (referrer_code && !existingUser) {
+      const { data: referrer } = await supabase.from('users').select('id').eq('referral_code', referrer_code).single()
 
       if (referrer) {
         referrerId = referrer.id
       }
     }
 
-    // Generate a random referral code
+    // 랜덤 추천인 코드 생성
     const generateReferralCode = () => {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
       let result = ''
@@ -64,46 +59,71 @@ export async function POST(request: NextRequest) {
       return result
     }
 
-    // Create or update the user
-    if (!user) {
-      // Create a new user
-      user = await prisma.user.create({
-        data: {
-          id,
-          username,
-          first_name,
-          last_name,
-          referrer_id: referrerId,
-          referral_code: generateReferralCode()
-        }
-      })
+    let user
 
-      // Create user tasks for the new user
-      const tasks = await prisma.task.findMany()
-      await Promise.all(
-        tasks.map((task) =>
-          prisma.userTask.create({
-            data: {
-              user_id: user!.id,
-              task_id: task.id,
-              completed: false
-            }
-          })
-        )
-      )
+    // 사용자 생성 또는 업데이트
+    if (!existingUser) {
+      // 신규 사용자 생성
+      const { data: newUser, error: createError } = await supabase
+        .from('users')
+        .insert([
+          {
+            id,
+            username,
+            first_name,
+            last_name,
+            referrer_id: referrerId,
+            referral_code: generateReferralCode(),
+            clicker_score: 0,
+            betting_score: 0,
+            total_score: 0,
+            daily_bets: 0
+          }
+        ])
+        .select()
+        .single()
+
+      if (createError) {
+        console.error('Error creating user:', createError)
+        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 })
+      }
+
+      user = newUser
+
+      // 신규 사용자의 기본 태스크 생성
+      const { data: tasks } = await supabase.from('tasks').select('id')
+
+      if (tasks && tasks.length > 0) {
+        const userTasks = tasks.map((task) => ({
+          user_id: id,
+          task_id: task.id,
+          completed: false
+        }))
+
+        await supabase.from('user_tasks').insert(userTasks)
+      }
     } else {
-      // Update existing user
-      user = await prisma.user.update({
-        where: { id },
-        data: {
+      // 기존 사용자 업데이트
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({
           username,
           first_name,
           last_name
-        }
-      })
+        })
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (updateError) {
+        console.error('Error updating user:', updateError)
+        return NextResponse.json({ error: 'Failed to update user' }, { status: 500 })
+      }
+
+      user = updatedUser
     }
 
-    return NextResponse.json({ user })
+    return NextResponse.json(user)
   } catch (error) {
     console.error('Error creating/updating user:', error)
     return NextResponse.json({ error: 'Failed to create/update user' }, { status: 500 })
@@ -124,7 +144,7 @@ export async function PUT(request: NextRequest) {
 
     if (clicker_score !== undefined) {
       updateData.clicker_score = clicker_score
-      updateData.last_click_time = new Date()
+      updateData.last_click_time = new Date().toISOString()
     }
 
     if (betting_score !== undefined) {
@@ -132,11 +152,17 @@ export async function PUT(request: NextRequest) {
     }
 
     if (Object.keys(updateData).length > 0) {
-      // Calculate total score
-      const user = await prisma.user.findUnique({
-        where: { id },
-        select: { clicker_score: true, betting_score: true }
-      })
+      // 총점 계산
+      const { data: user, error: fetchError } = await supabase
+        .from('users')
+        .select('clicker_score, betting_score')
+        .eq('id', id)
+        .single()
+
+      if (fetchError) {
+        console.error('Error fetching user for score update:', fetchError)
+        return NextResponse.json({ error: 'Failed to fetch user for update' }, { status: 500 })
+      }
 
       if (user) {
         const newClickerScore = clicker_score !== undefined ? clicker_score : user.clicker_score
@@ -145,12 +171,19 @@ export async function PUT(request: NextRequest) {
         updateData.total_score = newClickerScore + newBettingScore
       }
 
-      const updatedUser = await prisma.user.update({
-        where: { id },
-        data: updateData
-      })
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
 
-      return NextResponse.json({ user: updatedUser })
+      if (updateError) {
+        console.error('Error updating user score:', updateError)
+        return NextResponse.json({ error: 'Failed to update user score' }, { status: 500 })
+      }
+
+      return NextResponse.json(updatedUser)
     }
 
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 })

@@ -1,77 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { supabase } from '@/lib/supabase'
 
+// 리더보드 데이터 가져오기
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
+    const filter = searchParams.get('filter') || 'global'
     const userId = searchParams.get('userId')
-    const limit = parseInt(searchParams.get('limit') || '20')
 
-    // 상위 리더보드 가져오기
-    const leaderboard = await prisma.user.findMany({
-      select: {
-        id: true,
-        username: true,
-        first_name: true,
-        last_name: true,
-        total_score: true
-      },
-      orderBy: { total_score: 'desc' },
-      take: limit
-    })
+    // 필터링 옵션
+    if (filter === 'friends' && userId) {
+      // 친구 필터링: 해당 사용자가 추천한 사용자들 또는 사용자를 추천한 사용자들
+      const { data: user } = await supabase.from('users').select('referrer_id').eq('id', userId).single()
 
-    // 유저의 순위 계산
-    let userRank = null
-    if (userId) {
-      const totalUsers = await prisma.user.count({
-        where: {
-          total_score: {
-            gt: 0
+      // 추천인 관계가 있는 사용자들 조회
+      const { data: referrals } = await supabase.from('users').select('id').eq('referrer_id', userId)
+
+      // 추천인 ID들 추출
+      const friendIds = []
+      if (user?.referrer_id) {
+        friendIds.push(user.referrer_id)
+      }
+      if (referrals) {
+        referrals.forEach((r) => friendIds.push(r.id))
+      }
+
+      if (friendIds.length === 0) {
+        return NextResponse.json({ entries: [] })
+      }
+
+      // 친구 점수 조회
+      const { data: friends, error } = await supabase
+        .from('users')
+        .select('id, username, first_name, last_name, total_score, clicker_score, betting_score')
+        .in('id', friendIds)
+        .order('total_score', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching friends leaderboard:', error)
+        return NextResponse.json({ error: 'Failed to fetch friends leaderboard' }, { status: 500 })
+      }
+
+      // 각 친구에 순위 부여
+      const entries = friends.map((friend, index) => ({
+        id: friend.id,
+        rank: index + 1,
+        username: friend.username || `${friend.first_name || ''} ${friend.last_name || ''}`.trim() || 'User',
+        total_score: friend.total_score,
+        clicker_score: friend.clicker_score,
+        betting_score: friend.betting_score
+      }))
+
+      return NextResponse.json({ entries })
+    } else {
+      // 글로벌 리더보드: 모든 사용자의 점수를 내림차순으로 정렬
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('id, username, first_name, last_name, total_score, clicker_score, betting_score')
+        .order('total_score', { ascending: false })
+        .limit(100)
+
+      if (error) {
+        console.error('Error fetching global leaderboard:', error)
+        return NextResponse.json({ error: 'Failed to fetch global leaderboard' }, { status: 500 })
+      }
+
+      // 각 사용자에 순위 부여
+      const entries = users.map((user, index) => ({
+        id: user.id,
+        rank: index + 1,
+        username: user.username || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User',
+        total_score: user.total_score,
+        clicker_score: user.clicker_score,
+        betting_score: user.betting_score
+      }))
+
+      // 요청한 유저의 순위 찾기
+      let userRank = null
+      if (userId) {
+        const userIndex = entries.findIndex((entry) => entry.id === userId)
+        if (userIndex !== -1) {
+          userRank = userIndex + 1
+        } else {
+          // 사용자가 리더보드에 없는 경우 (점수가 낮거나 새로운 사용자)
+          const { data: userCount, error: countError } = await supabase
+            .from('users')
+            .select('count')
+            .gt(
+              'total_score',
+              (await supabase.from('users').select('total_score').eq('id', userId).single()).data?.total_score || 0
+            )
+            .single()
+
+          if (!countError && userCount) {
+            userRank = userCount.count + 1
           }
-        }
-      })
-
-      const userWithRank = await prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          id: true,
-          username: true,
-          first_name: true,
-          last_name: true,
-          total_score: true
-        }
-      })
-
-      if (userWithRank) {
-        // 유저보다 높은 점수를 가진 유저 수 + 1 = 유저의 순위
-        const usersWithHigherScore = await prisma.user.count({
-          where: {
-            total_score: {
-              gt: userWithRank.total_score
-            }
-          }
-        })
-
-        userRank = {
-          ...userWithRank,
-          rank: usersWithHigherScore + 1,
-          totalUsers
         }
       }
+
+      return NextResponse.json({ entries, userRank })
     }
-
-    // 응답 데이터 포맷
-    const formattedLeaderboard = leaderboard.map((user, index) => ({
-      ...user,
-      // 사용자 이름이 없는 경우 first_name과 last_name을 대신 사용
-      username: user.username || `${user.first_name || ''} ${user.last_name || ''}`.trim(),
-      rank: index + 1
-    }))
-
-    return NextResponse.json({
-      leaderboard: formattedLeaderboard,
-      userRank
-    })
   } catch (error) {
     console.error('Error fetching leaderboard:', error)
     return NextResponse.json({ error: 'Failed to fetch leaderboard' }, { status: 500 })

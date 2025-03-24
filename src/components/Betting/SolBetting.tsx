@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { createChart, CrosshairMode, IChartApi, ISeriesApi, Time, CandlestickSeries, BarData } from 'lightweight-charts'
 import { useBettingStore } from '@/store/bettingStore'
@@ -11,9 +11,10 @@ type TimeFrame = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
 export const SolBetting: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null)
-  const [chart, setChart] = useState<IChartApi | null>(null)
-  const [candleSeries, setCandleSeries] = useState<ISeriesApi<'Candlestick'> | null>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('1m')
+  const [isChartReady, setIsChartReady] = useState(false)
 
   const { user } = useUserStore()
   const { isConnected } = useWalletStore()
@@ -37,9 +38,11 @@ export const SolBetting: React.FC = () => {
   const MAX_DAILY_BETS = 10
   const remainingBets = user ? MAX_DAILY_BETS - user.daily_bets : 0
 
-  // 차트 초기화
-  useEffect(() => {
-    if (chartContainerRef.current && !chart) {
+  // 차트 초기화 함수
+  const initializeChart = useCallback(() => {
+    if (!chartContainerRef.current || chartRef.current) return
+
+    try {
       const newChart = createChart(chartContainerRef.current, {
         width: chartContainerRef.current.clientWidth,
         height: 300,
@@ -61,7 +64,6 @@ export const SolBetting: React.FC = () => {
           borderColor: '#f0f0f0',
           timeVisible: true
         },
-        // 툴바 활성화
         handleScroll: {
           vertTouchDrag: true
         },
@@ -79,13 +81,14 @@ export const SolBetting: React.FC = () => {
         wickDownColor: '#ef5350'
       })
 
-      setChart(newChart)
-      setCandleSeries(newCandleSeries)
+      chartRef.current = newChart
+      candleSeriesRef.current = newCandleSeries
+      setIsChartReady(true)
 
       // 차트 리사이즈 처리
       const handleResize = () => {
-        if (chartContainerRef.current && newChart) {
-          newChart.applyOptions({
+        if (chartContainerRef.current && chartRef.current) {
+          chartRef.current.applyOptions({
             width: chartContainerRef.current.clientWidth
           })
         }
@@ -95,69 +98,101 @@ export const SolBetting: React.FC = () => {
 
       return () => {
         window.removeEventListener('resize', handleResize)
-        newChart.remove()
       }
+    } catch (error) {
+      console.error('차트 초기화 오류:', error)
     }
+  }, [])
 
-    // 컴포넌트 언마운트 시 차트 제거
-    return () => {
-      if (chart) {
-        chart.remove()
+  // 차트 정리 함수
+  const cleanupChart = useCallback(() => {
+    try {
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+        candleSeriesRef.current = null
+        setIsChartReady(false)
       }
+    } catch (error) {
+      console.error('차트 정리 오류:', error)
     }
-  }, [chart, candleData])
+  }, [])
 
-  // 마운트 시 초기 데이터 불러오기
+  // 차트 초기화 및 정리
   useEffect(() => {
+    initializeChart()
+
+    return () => {
+      cleanupChart()
+    }
+  }, [initializeChart, cleanupChart])
+
+  // 차트 데이터 가져오기 함수
+  const fetchCandleData = useCallback(async () => {
+    if (!isChartReady || !candleSeriesRef.current) return
+
+    try {
+      const response = await fetch(
+        `https://api.binance.com/api/v3/klines?symbol=SOLUSDT&interval=${timeFrame}&limit=100`
+      )
+      const data = await response.json()
+
+      if (data && data.length > 0 && candleSeriesRef.current) {
+        const formattedData = data.map((item: any) => ({
+          time: (item[0] / 1000) as Time,
+          open: parseFloat(item[1]),
+          high: parseFloat(item[2]),
+          low: parseFloat(item[3]),
+          close: parseFloat(item[4])
+        }))
+
+        // 차트가 존재할 때만 데이터 설정
+        candleSeriesRef.current.setData(formattedData)
+
+        // 현재 가격 업데이트
+        const lastPrice = parseFloat(data[data.length - 1][4])
+        setCurrentPrice(lastPrice)
+
+        // 차트 영역 맞추기
+        if (chartRef.current) {
+          chartRef.current.timeScale().fitContent()
+        }
+      }
+    } catch (error) {
+      console.error('캔들 데이터 가져오기 오류:', error)
+    }
+  }, [timeFrame, isChartReady, setCurrentPrice])
+
+  // 데이터 로드 및 업데이트
+  useEffect(() => {
+    if (!isChartReady) return
+
     // 베팅 데이터 가져오기
     if (user?.id) {
-      // 서버에서 베팅 내역 가져오기 로직 추가 (가상)
-      const mockBets = [] as Bet[]
+      // 실제 구현에서는 API 호출로 대체할 것
+      const mockBets: Bet[] = []
       setBets(mockBets)
     }
 
-    // 차트 데이터 가져오기
-    const fetchCandleData = async () => {
-      try {
-        const response = await fetch(
-          `https://api.binance.com/api/v3/klines?symbol=SOLUSDT&interval=${timeFrame}&limit=100`
-        )
-        const data = await response.json()
-
-        if (data && data.length > 0) {
-          const formattedData = data.map((item: any) => ({
-            time: (item[0] / 1000) as Time,
-            open: parseFloat(item[1]),
-            high: parseFloat(item[2]),
-            low: parseFloat(item[3]),
-            close: parseFloat(item[4])
-          }))
-
-          if (candleSeries) {
-            candleSeries.setData(formattedData)
-          }
-
-          // 현재 가격 업데이트
-          const lastPrice = parseFloat(data[data.length - 1][4])
-          setCurrentPrice(lastPrice)
-
-          // 차트 영역 맞추기
-          chart?.timeScale().fitContent()
-        }
-      } catch (error) {
-        console.error('Error fetching candle data:', error)
-      }
-    }
-
+    // 초기 데이터 로드
     fetchCandleData()
 
-    // 실시간 업데이트 시뮬레이션
+    // 주기적인 데이터 업데이트 (실제 구현에서는 웹소켓 사용 권장)
     const interval = setInterval(() => {
-      // ... (기존 코드 유지)
-    }, 1000)
+      fetchCandleData()
+    }, 10000) // 10초마다 업데이트
 
-    return () => clearInterval(interval)
-  }, [candleSeries, timeFrame, currentBet, countdown, chart, addBet, setCurrentBet, setCurrentPrice, setBets, user?.id])
+    return () => {
+      clearInterval(interval)
+    }
+  }, [fetchCandleData, isChartReady, setBets, user?.id])
+
+  // 타임프레임 변경시 데이터 다시 로드
+  useEffect(() => {
+    if (isChartReady) {
+      fetchCandleData()
+    }
+  }, [timeFrame, fetchCandleData, isChartReady])
 
   // 타임프레임에 따른 초 단위 변환
   const getTimeFrameSeconds = (tf: TimeFrame): number => {
@@ -193,7 +228,9 @@ export const SolBetting: React.FC = () => {
         setCountdown(countdown - 1)
       }, 1000)
 
-      return () => clearTimeout(timer)
+      return () => {
+        clearTimeout(timer)
+      }
     }
   }, [countdown, setCountdown])
 

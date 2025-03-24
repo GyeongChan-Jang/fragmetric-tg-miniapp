@@ -3,8 +3,8 @@ import { motion } from 'framer-motion'
 import { useTabStore, AccountSubTab } from '@/store/tabStore'
 import { useUserStore } from '@/store/userStore'
 import { useTaskStore } from '@/store/taskStore'
-import TaskList from './TaskList'
 import ReferralInfo from './ReferralInfo'
+import TaskList from './TaskList'
 
 export const Account: React.FC = () => {
   const { activeAccountSubTab, setActiveAccountSubTab } = useTabStore()
