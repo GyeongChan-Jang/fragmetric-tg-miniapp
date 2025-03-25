@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { User } from '@/types'
 import { persist } from 'zustand/middleware'
+import { supabase } from '@/lib/supabase'
 
 interface UserState {
   user: User | null
@@ -19,6 +20,9 @@ interface UserState {
   refreshBoost: () => void
   getRank: () => string
   initUser: () => void
+  fetchUser: (userId: string) => Promise<void>
+  createUser: (userData: Partial<User>) => Promise<User | null>
+  saveUserToSupabase: () => Promise<void>
 }
 
 export const MAX_BOOST = 500
@@ -57,6 +61,105 @@ export const useUserStore = create<UserState>()(
         }
       },
 
+      // Supabase에서 사용자 정보 가져오기
+      fetchUser: async (userId) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const { data, error } = await supabase.from('users').select('*').eq('id', userId).single()
+
+          if (error) {
+            throw error
+          }
+
+          if (data) {
+            set({ user: data as User, isLoading: false })
+          } else {
+            set({ error: 'User not found', isLoading: false })
+          }
+        } catch (err) {
+          console.error('Error fetching user:', err)
+          set({
+            error: err instanceof Error ? err.message : 'Failed to fetch user',
+            isLoading: false
+          })
+        }
+      },
+
+      // 새 사용자 생성
+      createUser: async (userData) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          // 랜덤 추천인 코드 생성
+          const generateReferralCode = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
+            let result = ''
+            for (let i = 0; i < 8; i++) {
+              result += chars.charAt(Math.floor(Math.random() * chars.length))
+            }
+            return result
+          }
+
+          const newUser = {
+            ...userData,
+            clicker_score: 0,
+            betting_score: 0,
+            total_score: 0,
+            daily_bets: 0,
+            last_bet_reset: new Date(),
+            last_click_time: new Date(),
+            referral_code: generateReferralCode(),
+            created_at: new Date()
+          }
+
+          const { data, error } = await supabase.from('users').insert([newUser]).select().single()
+
+          if (error) {
+            throw error
+          }
+
+          set({ user: data as User, isLoading: false })
+          return data as User
+        } catch (err) {
+          console.error('Error creating user:', err)
+          set({
+            error: err instanceof Error ? err.message : 'Failed to create user',
+            isLoading: false
+          })
+          return null
+        }
+      },
+
+      // Supabase에 사용자 정보 저장
+      saveUserToSupabase: async () => {
+        const user = get().user
+
+        if (!user || user.id === 'local-user') {
+          return
+        }
+
+        try {
+          const { error } = await supabase
+            .from('users')
+            .update({
+              clicker_score: user.clicker_score,
+              betting_score: user.betting_score,
+              total_score: user.total_score,
+              daily_bets: user.daily_bets,
+              last_bet_reset: user.last_bet_reset,
+              last_click_time: user.last_click_time
+            })
+            .eq('id', user.id)
+
+          if (error) {
+            console.error('Error updating user in Supabase:', error)
+          }
+        } catch (err) {
+          console.error('Error saving user to Supabase:', err)
+        }
+      },
+
       updateClickerScore: (increment) =>
         set((state) => {
           if (!state.user) {
@@ -82,14 +185,17 @@ export const useUserStore = create<UserState>()(
           console.log('Betting score:', betting)
           console.log('New total score:', newTotalScore)
 
-          return {
-            user: {
-              ...state.user,
-              clicker_score: newClickerScore,
-              total_score: newTotalScore,
-              last_click_time: new Date()
-            }
+          const updatedUser = {
+            ...state.user,
+            clicker_score: newClickerScore,
+            total_score: newTotalScore,
+            last_click_time: new Date()
           }
+
+          // 비동기적으로 Supabase에 업데이트
+          get().saveUserToSupabase()
+
+          return { user: updatedUser }
         }),
 
       updateBettingScore: (increment) =>
@@ -99,38 +205,47 @@ export const useUserStore = create<UserState>()(
           const newBettingScore = (state.user.betting_score || 0) + increment
           const newTotalScore = (state.user.clicker_score || 0) + newBettingScore
 
-          return {
-            user: {
-              ...state.user,
-              betting_score: newBettingScore,
-              total_score: newTotalScore
-            }
+          const updatedUser = {
+            ...state.user,
+            betting_score: newBettingScore,
+            total_score: newTotalScore
           }
+
+          // 비동기적으로 Supabase에 업데이트
+          get().saveUserToSupabase()
+
+          return { user: updatedUser }
         }),
 
       resetDailyBets: () =>
         set((state) => {
           if (!state.user) return state
 
-          return {
-            user: {
-              ...state.user,
-              daily_bets: 0,
-              last_bet_reset: new Date()
-            }
+          const updatedUser = {
+            ...state.user,
+            daily_bets: 0,
+            last_bet_reset: new Date()
           }
+
+          // 비동기적으로 Supabase에 업데이트
+          get().saveUserToSupabase()
+
+          return { user: updatedUser }
         }),
 
       incrementDailyBets: () =>
         set((state) => {
           if (!state.user) return state
 
-          return {
-            user: {
-              ...state.user,
-              daily_bets: (state.user.daily_bets || 0) + 1
-            }
+          const updatedUser = {
+            ...state.user,
+            daily_bets: (state.user.daily_bets || 0) + 1
           }
+
+          // 비동기적으로 Supabase에 업데이트
+          get().saveUserToSupabase()
+
+          return { user: updatedUser }
         }),
 
       useBoost: (amount) =>

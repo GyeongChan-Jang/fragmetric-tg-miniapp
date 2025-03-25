@@ -30,8 +30,8 @@ export const SolBetting: React.FC = () => {
     setCurrentPrice,
     setCountdown,
     placeBet,
-    addBet,
-    setCurrentBet
+    fetchBettingHistory,
+    updateBetResult
   } = useBettingStore()
 
   // 최대 일일 베팅 횟수
@@ -163,15 +163,30 @@ export const SolBetting: React.FC = () => {
     }
   }, [timeFrame, isChartReady, setCurrentPrice])
 
+  // 베팅 결과 처리 함수
+  const processBetResult = useCallback(() => {
+    if (!currentBet || !currentPrice) return
+
+    // 승패 결정
+    const startPrice = currentBet.sol_price_start
+    const endPrice = currentPrice
+    const betType = currentBet.type
+    const result = betType === 'UP' ? (endPrice > startPrice ? 'WIN' : 'LOSE') : endPrice < startPrice ? 'WIN' : 'LOSE'
+
+    // 획득 점수 계산
+    const scoreEarned = result === 'WIN' ? 10 : 0 // 승리 시 10점, 패배 시 0점
+
+    // 베팅 결과 업데이트
+    updateBetResult(currentBet.id, endPrice, result, scoreEarned)
+  }, [currentBet, currentPrice, updateBetResult])
+
   // 데이터 로드 및 업데이트
   useEffect(() => {
     if (!isChartReady) return
 
     // 베팅 데이터 가져오기
     if (user?.id) {
-      // 실제 구현에서는 API 호출로 대체할 것
-      const mockBets: Bet[] = []
-      setBets(mockBets)
+      fetchBettingHistory(user.id)
     }
 
     // 초기 데이터 로드
@@ -185,7 +200,7 @@ export const SolBetting: React.FC = () => {
     return () => {
       clearInterval(interval)
     }
-  }, [fetchCandleData, isChartReady, setBets, user?.id])
+  }, [fetchCandleData, isChartReady, fetchBettingHistory, user?.id])
 
   // 타임프레임 변경시 데이터 다시 로드
   useEffect(() => {
@@ -231,8 +246,11 @@ export const SolBetting: React.FC = () => {
       return () => {
         clearTimeout(timer)
       }
+    } else if (countdown === 0 && currentBet) {
+      // 카운트다운이 끝나면 베팅 결과 처리
+      processBetResult()
     }
-  }, [countdown, setCountdown])
+  }, [countdown, setCountdown, currentBet, processBetResult])
 
   // 사용자 베팅 처리
   const handlePlaceBet = (type: BetType) => {

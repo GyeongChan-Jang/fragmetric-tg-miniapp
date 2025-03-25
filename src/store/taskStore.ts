@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { Task, UserTask } from '@/types'
+import { supabase } from '@/lib/supabase'
+import { useUserStore } from './userStore'
 
 interface TaskState {
   tasks: Task[]
@@ -9,8 +11,8 @@ interface TaskState {
 
   setTasks: (tasks: Task[]) => void
   setUserTasks: (userTasks: UserTask[]) => void
-  completeTask: (taskId: string) => Promise<void>
-  fetchTasks: () => Promise<void>
+  completeTask: (userTaskId: string) => Promise<void>
+  fetchTasks: (userId: string) => Promise<void>
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -23,30 +25,93 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   setUserTasks: (userTasks) => set({ userTasks }),
 
-  completeTask: async (taskId) => {
+  completeTask: async (userTaskId) => {
     set({ isLoading: true, error: null })
 
     try {
-      // 실제 구현에서는 API를 호출하여 서버에 작업 완료 정보를 저장합니다.
-      // 여기서는 로컬 state 업데이트만 수행합니다.
-      const { userTasks } = get()
+      // 태스크 정보 및 보상 가져오기
+      const { data: userTaskData, error: fetchError } = await supabase
+        .from('user_tasks')
+        .select('id, task_id, task:tasks(score_reward)')
+        .eq('id', userTaskId)
+        .single()
 
-      const updatedUserTasks = userTasks.map((userTask) => {
-        if (userTask.task_id === taskId) {
-          return {
-            ...userTask,
-            completed: true,
-            completed_at: new Date()
+      if (fetchError) {
+        throw fetchError
+      }
+
+      if (!userTaskData) {
+        throw new Error('Task not found')
+      }
+
+      // 이미 완료된 태스크인지 확인
+      const { data: existingTask, error: checkError } = await supabase
+        .from('user_tasks')
+        .select('completed')
+        .eq('id', userTaskId)
+        .single()
+
+      if (checkError) {
+        throw checkError
+      }
+
+      if (existingTask?.completed) {
+        throw new Error('Task already completed')
+      }
+
+      // 태스크 완료 처리
+      const { error: updateError } = await supabase
+        .from('user_tasks')
+        .update({
+          completed: true,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', userTaskId)
+
+      if (updateError) {
+        throw updateError
+      }
+
+      // 보상 적용
+      const reward = userTaskData.task?.[0]?.score_reward || 0
+      const user = useUserStore.getState().user
+
+      if (user && reward > 0) {
+        // 유저 총점 업데이트
+        const { error: userUpdateError } = await supabase
+          .from('users')
+          .update({
+            total_score: (user.total_score || 0) + reward
+          })
+          .eq('id', user.id)
+
+        if (userUpdateError) {
+          console.error('Error updating user score:', userUpdateError)
+        } else {
+          // 로컬 유저 스토어 업데이트
+          const updatedUser = {
+            ...user,
+            total_score: (user.total_score || 0) + reward
           }
+          useUserStore.getState().setUser(updatedUser)
         }
-        return userTask
-      })
+      }
 
-      // 잠시 지연시켜 로딩 상태 확인
-      await new Promise((resolve) => setTimeout(resolve, 500))
-
-      set({ userTasks: updatedUserTasks, isLoading: false })
+      // 로컬 상태 업데이트
+      set((state) => ({
+        userTasks: state.userTasks.map((ut) =>
+          ut.id === userTaskId
+            ? {
+                ...ut,
+                completed: true,
+                completed_at: new Date()
+              }
+            : ut
+        ),
+        isLoading: false
+      }))
     } catch (err) {
+      console.error('Error completing task:', err)
       set({
         error: err instanceof Error ? err.message : 'Failed to complete task',
         isLoading: false
@@ -54,64 +119,104 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }
   },
 
-  fetchTasks: async () => {
+  fetchTasks: async (userId) => {
     set({ isLoading: true, error: null })
 
     try {
-      // 실제 구현에서는 API를 호출하여 서버에서 작업 데이터를 가져옵니다.
-      // 여기서는 예시 데이터를 사용합니다.
-      const mockTasks: Task[] = [
-        {
-          id: '1',
-          name: 'Daily Check-in',
-          description: 'Get daily points by checking in',
-          score_reward: 10,
-          type: 'DAILY',
-          task_key: 'daily_check_in'
-        },
-        {
-          id: '2',
-          name: 'Follow on X',
-          description: 'Follow Fragmetric on X',
-          score_reward: 50,
-          type: 'SOCIAL',
-          task_key: 'follow_x'
-        },
-        {
-          id: '3',
-          name: 'Join Telegram Channel',
-          description: 'Join the official Telegram channel',
-          score_reward: 50,
-          type: 'SOCIAL',
-          task_key: 'join_telegram'
-        },
-        {
-          id: '4',
-          name: 'Join Discord Server',
-          description: 'Join the official Discord server',
-          score_reward: 50,
-          type: 'SOCIAL',
-          task_key: 'join_discord'
+      // 사용자의 모든 태스크 조회 (기본 태스크 및 완료 상태 포함)
+      const { data, error } = await supabase
+        .from('user_tasks')
+        .select(
+          `
+          *,
+          task:tasks(*)
+        `
+        )
+        .eq('user_id', userId)
+
+      if (error) {
+        throw error
+      }
+
+      if (!data || data.length === 0) {
+        // 태스크가 없는 경우 기본 태스크 생성
+        const { data: basicTasks, error: basicTasksError } = await supabase.from('tasks').select('*')
+
+        if (basicTasksError) {
+          throw basicTasksError
         }
-      ]
 
-      const mockUserTasks: UserTask[] = mockTasks.map((task) => ({
-        id: `user-task-${task.id}`,
-        user_id: 'temp-user', // 실제 유저 ID로 대체해야 합니다
-        task_id: task.id,
-        completed: false,
-        task
-      }))
+        if (basicTasks && basicTasks.length > 0) {
+          // 유저에게 기본 태스크 할당
+          const userTasksData = basicTasks.map((task) => ({
+            user_id: userId,
+            task_id: task.id,
+            completed: false
+          }))
 
-      // 잠시 지연시켜 로딩 상태 확인
-      await new Promise((resolve) => setTimeout(resolve, 500))
+          const { data: newUserTasks, error: createError } = await supabase
+            .from('user_tasks')
+            .insert(userTasksData)
+            .select(
+              `
+              *,
+              task:tasks(*)
+            `
+            )
 
-      set({
-        tasks: mockTasks,
-        userTasks: mockUserTasks,
-        isLoading: false
-      })
+          if (createError) {
+            throw createError
+          }
+
+          // 응답 데이터 포맷팅
+          const formattedTasks = (newUserTasks || []).map((item) => ({
+            id: item.id,
+            user_id: item.user_id,
+            task_id: item.task_id,
+            completed: item.completed,
+            completed_at: item.completed_at,
+            task: item.task
+          }))
+
+          set({
+            userTasks: formattedTasks,
+            tasks: basicTasks,
+            isLoading: false
+          })
+        } else {
+          set({
+            userTasks: [],
+            tasks: [],
+            isLoading: false
+          })
+        }
+      } else {
+        // 응답 데이터 포맷팅
+        const formattedTasks = data.map((item) => ({
+          id: item.id,
+          user_id: item.user_id,
+          task_id: item.task_id,
+          completed: item.completed,
+          completed_at: item.completed_at,
+          task: item.task
+        }))
+
+        // 고유한 태스크 목록 추출
+        const uniqueTasks = Array.from(new Set(data.map((item) => item.task?.id)))
+          .map((taskId) => {
+            const taskItem = data.find((item) => item.task?.id === taskId)
+            return taskItem?.task
+          })
+          .filter(Boolean)
+
+        set({
+          userTasks: formattedTasks,
+          tasks: uniqueTasks as Task[],
+          isLoading: false
+        })
+      }
     } catch (err) {
+      console.error('Error fetching tasks:', err)
       set({
         error: err instanceof Error ? err.message : 'Failed to fetch tasks',
         isLoading: false

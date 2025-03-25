@@ -1,60 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { SolCandle } from '@/types'
 
-export async function GET(request: NextRequest) {
-  try {
-    const searchParams = request.nextUrl.searchParams
-    const interval = searchParams.get('interval') || '1m' // 1m, 5m, 15m, 1h, etc.
-    const limit = parseInt(searchParams.get('limit') || '100')
+// This file is a placeholder for server functions.
+// Since we're using static export, real API routes won't be included in the build.
+export const dynamic = 'force-static'
 
-    // CoinGecko API를 통해 SOL 가격 정보 가져오기
-    const coinGeckoUrl = 'https://api.coingecko.com/api/v3/coins/solana/ohlc'
-    const response = await fetch(`${coinGeckoUrl}?vs_currency=usd&days=1`, {
-      headers: {
-        Accept: 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error(`CoinGecko API error: ${response.status}`)
+// SOL 가격 정보 가져오기 (정적 내보내기에서는 사용되지 않음)
+export async function GET() {
+  return new Response(JSON.stringify({ message: 'This API is not available in static export mode' }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json'
     }
-
-    const data = await response.json()
-
-    // CoinGecko API에서 가져온 데이터를 SolCandle 형식으로 변환
-    const candles: SolCandle[] = data.map((item: any) => ({
-      time: item[0], // timestamp
-      open: item[1],
-      high: item[2],
-      low: item[3],
-      close: item[4]
-    }))
-
-    return NextResponse.json({ candles })
-  } catch (error) {
-    console.error('Error fetching SOL price:', error)
-
-    // API 호출 실패 시 임시 데이터 생성
-    const now = Date.now()
-    const mockCandles: SolCandle[] = Array.from({ length: 100 }, (_, i) => {
-      const time = now - (99 - i) * 60 * 1000 // 1분 간격
-      const basePrice = 120 + Math.random() * 5 // 기본 가격 (약 $120-$125)
-      const open = basePrice
-      const close = basePrice * (1 + (Math.random() * 0.02 - 0.01)) // ±1% 변동
-      const high = Math.max(open, close) * (1 + Math.random() * 0.01) // 최대 1% 상승
-      const low = Math.min(open, close) * (1 - Math.random() * 0.01) // 최대 1% 하락
-
-      return {
-        time,
-        open,
-        high,
-        low,
-        close
-      }
-    })
-
-    return NextResponse.json({ candles: mockCandles, error: 'Using mock data due to API error' }, { status: 200 })
-  }
+  })
 }
 
 // 현재 SOL 가격만 가져오기

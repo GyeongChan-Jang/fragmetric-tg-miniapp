@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { useTabStore } from '@/store/tabStore'
 import { useUserStore } from '@/store/userStore'
+import { useTelegramAuth } from '@/hooks/useTelegramAuth'
 import MainContainer from '@/components/MainContainer'
 import ClickerGame from '@/components/Clicker/ClickerGame'
 import { SolBetting } from '@/components/Betting/SolBetting'
@@ -11,44 +12,16 @@ import Account from '@/components/Account/Account'
 
 export default function Home() {
   const { activeTab } = useTabStore()
-  const { user, isLoading, error, setUser } = useUserStore()
+  const { user, isLoading: userLoading, error: userError } = useUserStore()
+  const { isLoading: authLoading, error: authError, initTelegramAuth } = useTelegramAuth()
 
-  // 사용자 데이터 로딩
+  // 사용자 인증 처리
   useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const response = await fetch('/api/user')
+    initTelegramAuth()
+  }, [initTelegramAuth])
 
-        if (!response.ok) {
-          // 사용자가 없는 경우 새로 생성
-          if (response.status === 404) {
-            const createResponse = await fetch('/api/user', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json'
-              }
-            })
-
-            if (createResponse.ok) {
-              const userData = await createResponse.json()
-              setUser(userData)
-            } else {
-              throw new Error('Failed to create user')
-            }
-          } else {
-            throw new Error('Failed to fetch user data')
-          }
-        } else {
-          const userData = await response.json()
-          setUser(userData)
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error)
-      }
-    }
-
-    loadUserData()
-  }, [setUser])
+  const isLoading = userLoading || authLoading
+  const error = userError || authError
 
   // 활성화된 탭에 따라 내용 렌더링
   const renderContent = () => {

@@ -12,8 +12,10 @@ export const Account: React.FC = () => {
   const { fetchTasks } = useTaskStore()
 
   useEffect(() => {
-    fetchTasks()
-  }, [fetchTasks])
+    if (user) {
+      fetchTasks(user.id)
+    }
+  }, [fetchTasks, user])
 
   const SubTabButton: React.FC<{
     label: string

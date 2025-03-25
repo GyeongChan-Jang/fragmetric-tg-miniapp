@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { LeaderboardEntry } from '@/types'
+import { supabase } from '@/lib/supabase'
 
 interface LeaderboardState {
   entries: LeaderboardEntry[]
@@ -9,7 +10,7 @@ interface LeaderboardState {
 
   setEntries: (entries: LeaderboardEntry[]) => void
   setUserRank: (rank: number) => void
-  fetchLeaderboard: () => Promise<void>
+  fetchLeaderboard: (userId?: string, filter?: string) => Promise<void>
 }
 
 export const useLeaderboardStore = create<LeaderboardState>((set) => ({
@@ -22,25 +23,102 @@ export const useLeaderboardStore = create<LeaderboardState>((set) => ({
 
   setUserRank: (rank) => set({ userRank: rank }),
 
-  fetchLeaderboard: async () => {
+  fetchLeaderboard: async (userId, filter = 'global') => {
     set({ isLoading: true, error: null })
 
     try {
-      // 실제 구현에서는 API를 호출하여 서버에서 리더보드 데이터를 가져옵니다.
-      // 여기서는 예시 데이터를 사용합니다.
-      const mockData: LeaderboardEntry[] = [
-        { id: '1', username: 'user1', total_score: 1200, rank: 1 },
-        { id: '2', username: 'user2', total_score: 900, rank: 2 },
-        { id: '3', username: 'user3', total_score: 800, rank: 3 },
-        { id: '4', username: 'user4', total_score: 700, rank: 4 },
-        { id: '5', username: 'user5', total_score: 600, rank: 5 }
-      ]
+      if (filter === 'friends' && userId) {
+        // 친구 필터링: 해당 사용자가 추천한 사용자들 또는 사용자를 추천한 사용자들
+        const { data: user } = await supabase.from('users').select('referrer_id').eq('id', userId).single()
 
-      // 잠시 지연시켜 로딩 상태 확인
-      await new Promise((resolve) => setTimeout(resolve, 500))
+        // 추천인 관계가 있는 사용자들 조회
+        const { data: referrals } = await supabase.from('users').select('id').eq('referrer_id', userId)
 
-      set({ entries: mockData, isLoading: false })
+        // 추천인 ID들 추출
+        const friendIds = []
+        if (user?.referrer_id) {
+          friendIds.push(user.referrer_id)
+        }
+        if (referrals) {
+          referrals.forEach((r) => friendIds.push(r.id))
+        }
+
+        if (friendIds.length === 0) {
+          set({ entries: [], isLoading: false })
+          return
+        }
+
+        // 친구 점수 조회
+        const { data: friends, error } = await supabase
+          .from('users')
+          .select('id, username, first_name, last_name, total_score, clicker_score, betting_score')
+          .in('id', friendIds)
+          .order('total_score', { ascending: false })
+
+        if (error) {
+          throw error
+        }
+
+        // 각 친구에 순위 부여
+        const entries = friends.map((friend, index) => ({
+          id: friend.id,
+          rank: index + 1,
+          username: friend.username || `${friend.first_name || ''} ${friend.last_name || ''}`.trim() || 'User',
+          total_score: friend.total_score,
+          clicker_score: friend.clicker_score,
+          betting_score: friend.betting_score
+        }))
+
+        set({ entries, isLoading: false })
+      } else {
+        // 글로벌 리더보드: 모든 사용자의 점수를 내림차순으로 정렬
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('id, username, first_name, last_name, total_score, clicker_score, betting_score')
+          .order('total_score', { ascending: false })
+          .limit(100)
+
+        if (error) {
+          throw error
+        }
+
+        // 각 사용자에 순위 부여
+        const entries = users.map((user, index) => ({
+          id: user.id,
+          rank: index + 1,
+          username: user.username || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'User',
+          total_score: user.total_score,
+          clicker_score: user.clicker_score,
+          betting_score: user.betting_score
+        }))
+
+        // 요청한 유저의 순위 찾기
+        let userRank = null
+        if (userId) {
+          const userIndex = entries.findIndex((entry) => entry.id === userId)
+          if (userIndex !== -1) {
+            userRank = userIndex + 1
+          } else {
+            // 사용자가 리더보드에 없는 경우 (점수가 낮거나 새로운 사용자)
+            const { data: userCount, error: countError } = await supabase
+              .from('users')
+              .select('count')
+              .gt(
+                'total_score',
+                (await supabase.from('users').select('total_score').eq('id', userId).single()).data?.total_score || 0
+              )
+              .single()
+
+            if (!countError && userCount) {
+              userRank = userCount.count + 1
+            }
+          }
+        }
+
+        set({ entries, userRank, isLoading: false })
+      }
     } catch (err) {
+      console.error('Error fetching leaderboard:', err)
       set({
         error: err instanceof Error ? err.message : 'Failed to fetch leaderboard',
         isLoading: false

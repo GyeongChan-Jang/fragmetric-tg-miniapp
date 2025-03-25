@@ -8,10 +8,22 @@ export const Leaderboard: React.FC = () => {
   const { entries, isLoading, error, userRank, fetchLeaderboard } = useLeaderboardStore()
   const { user } = useUserStore()
   const [filterType, setFilterType] = useState<'all' | 'clicker' | 'betting'>('all')
+  const [filter, setFilter] = useState<'global' | 'friends'>('global')
 
   useEffect(() => {
-    fetchLeaderboard()
-  }, [filterType, fetchLeaderboard])
+    if (user) {
+      fetchLeaderboard(user.id, filter)
+    } else {
+      fetchLeaderboard(undefined, 'global')
+    }
+  }, [filterType, filter, fetchLeaderboard, user])
+
+  // 필터 스타일 적용 함수
+  const getFilterButtonStyle = (currentFilter: string, buttonFilter: string) => {
+    return currentFilter === buttonFilter
+      ? 'bg-blue-500 text-white border-blue-500'
+      : 'bg-white text-gray-700 hover:bg-gray-50'
+  }
 
   const getTopEntries = (count: number) => {
     return entries.slice(0, count)
@@ -70,38 +82,62 @@ export const Leaderboard: React.FC = () => {
         <p className="text-gray-600 text-center text-sm">Compete with other players and earn rewards!</p>
       </div>
 
-      <div className="flex justify-center mb-4">
-        <div className="inline-flex rounded-md shadow-sm">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-4 py-2 text-sm font-medium border border-gray-300 rounded-l-md ${
-              filterType === 'all'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            All
-          </button>
-          <button
-            onClick={() => setFilterType('clicker')}
-            className={`px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-300 ${
-              filterType === 'clicker'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Clicker
-          </button>
-          <button
-            onClick={() => setFilterType('betting')}
-            className={`px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-300 rounded-r-md ${
-              filterType === 'betting'
-                ? 'bg-blue-500 text-white border-blue-500'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            Betting
-          </button>
+      <div className="flex flex-col gap-2 mb-4">
+        {/* 글로벌/친구 필터 */}
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-md shadow-sm">
+            <button
+              onClick={() => setFilter('global')}
+              className={`px-4 py-2 text-sm font-medium border border-gray-300 rounded-l-md ${getFilterButtonStyle(
+                filter,
+                'global'
+              )}`}
+            >
+              Global
+            </button>
+            <button
+              onClick={() => setFilter('friends')}
+              className={`px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-300 rounded-r-md ${getFilterButtonStyle(
+                filter,
+                'friends'
+              )}`}
+            >
+              Friends
+            </button>
+          </div>
+        </div>
+
+        {/* 점수 타입 필터 */}
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-md shadow-sm">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-4 py-2 text-sm font-medium border border-gray-300 rounded-l-md ${getFilterButtonStyle(
+                filterType,
+                'all'
+              )}`}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setFilterType('clicker')}
+              className={`px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-300 ${getFilterButtonStyle(
+                filterType,
+                'clicker'
+              )}`}
+            >
+              Clicker
+            </button>
+            <button
+              onClick={() => setFilterType('betting')}
+              className={`px-4 py-2 text-sm font-medium border-t border-b border-r border-gray-300 rounded-r-md ${getFilterButtonStyle(
+                filterType,
+                'betting'
+              )}`}
+            >
+              Betting
+            </button>
+          </div>
         </div>
       </div>
 
@@ -111,6 +147,10 @@ export const Leaderboard: React.FC = () => {
         </div>
       ) : error ? (
         <div className="bg-red-100 border border-red-300 p-3 rounded-lg text-red-700">{error}</div>
+      ) : entries.length === 0 ? (
+        <div className="bg-yellow-50 border border-yellow-300 p-4 rounded-lg text-yellow-700 text-center">
+          {filter === 'friends' ? 'No friends found. Invite friends using your referral code!' : 'No data available'}
+        </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
           <div className="p-4 bg-blue-500 text-white font-semibold flex justify-between items-center">

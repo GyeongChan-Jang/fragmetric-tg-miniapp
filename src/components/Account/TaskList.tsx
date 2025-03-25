@@ -14,9 +14,9 @@ export const TaskList: React.FC = () => {
     activeTaskType === 'ALL' ? userTasks : userTasks.filter((ut) => ut.task?.type === activeTaskType)
 
   // 작업 완료 처리하기
-  const handleCompleteTask = async (taskId: string) => {
+  const handleCompleteTask = async (userTaskId: string) => {
     if (!user) return
-    await completeTask(taskId)
+    await completeTask(userTaskId)
   }
 
   // 작업 유형에 따른 아이콘 선택하기
@@ -110,7 +110,7 @@ export const TaskList: React.FC = () => {
                   ) : (
                     <button
                       className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-3 py-1 rounded-lg"
-                      onClick={() => handleCompleteTask(userTask.task_id)}
+                      onClick={() => handleCompleteTask(userTask.id)}
                     >
                       Complete
                     </button>
