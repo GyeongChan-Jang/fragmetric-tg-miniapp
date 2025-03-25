@@ -14,7 +14,7 @@ interface ClickPoint {
 }
 
 export const ClickerGame: React.FC = () => {
-  const { user, updateClickerScore, boost, useBoost: decreaseBoost, refreshBoost, getRank } = useUserStore()
+  const { user, updateClickerScore, boost, useBoost: decreaseBoost, refreshBoost, getRank, initUser } = useUserStore()
   const { incrementClicks, setIsAnimating, isAnimating } = useClickerStore()
 
   const [windowDimensions, setWindowDimensions] = useState<{ width: number; height: number }>({
@@ -41,6 +41,11 @@ export const ClickerGame: React.FC = () => {
 
   // MILESTONES를 useMemo로 이동
   const MILESTONES = useMemo(() => [100, 500, 1000, 5000, 10000], [])
+
+  // 컴포넌트 마운트 시 유저 초기화
+  useEffect(() => {
+    initUser()
+  }, [initUser])
 
   // springTiltX, springTiltY 값이 변경될 때마다 tiltX, tiltY 값을 업데이트
   useEffect(() => {
@@ -97,9 +102,17 @@ export const ClickerGame: React.FC = () => {
 
     setIsAnimating(true)
 
-    // 올바른 메서드명 사용 (React Hook이 아님)
+    // 클릭 1점 고정 + 부스트 활성화 시 추가 점수
     const boostAmount = boost > 0 ? 1 : 0
-    const points = incrementClicks() + boostAmount
+    const points = 1 + boostAmount // 항상 1점 + 부스트 보너스
+
+    // 클릭 트래킹 함수 (UI 애니메이션만 위한 용도)
+    incrementClicks()
+
+    console.log('Incrementing score by:', points)
+    console.log('Current user:', user)
+
+    // 점수 업데이트 (localStorage에만 저장)
     updateClickerScore(points)
 
     // boost 사용하기 (React Hook이 아닌 상태 업데이트 함수)
@@ -119,7 +132,7 @@ export const ClickerGame: React.FC = () => {
       id: nextId,
       x,
       y,
-      value: 1
+      value: points // 실제 증가하는 점수를 표시
     }
 
     setClickPoints((prev) => [...prev, newPoint])

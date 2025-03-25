@@ -55,8 +55,8 @@ export const useClickerStore = create<ClickerState>((set, get) => ({
 
   incrementClicks: () => {
     const { clickValue, clickMultiplier } = get()
-    const totalValue = Math.round(clickValue * clickMultiplier)
-    return totalValue
+    // 클릭 UI 애니메이션을 위한 함수로만 사용하고 항상 1을 반환
+    return 1
   },
 
   setIsAnimating: (value) => set({ isAnimating: value }),
