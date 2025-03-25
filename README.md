@@ -526,3 +526,268 @@ webpack: (config) => {
 - 이미지 최적화 및 지연 로딩 활성화
 - 코드 스플리팅 구현
 - API 요청 캐싱 및 재시도 로직 추가
+
+## 프로젝트 개발 과정 (개발 로그)
+
+### 1. Telegram 미니앱 프로젝트 초기 설정
+
+**목표**: 텔레그램 미니앱 플랫폼에서 작동하는 Next.js 기반 앱 구축
+
+**구현 과정**:
+
+- Next.js 14와 TypeScript 기반 프로젝트 초기화
+- Telegram WebApp API 및 TON Connect 의존성 추가
+- 파일 기반 라우팅 구조 설정
+- Root 컴포넌트를 통한 TonConnectUIProvider 통합
+
+**기술적 과제**:
+
+- `TonConnectProvider` 설정 오류 해결을 위한 Root 컴포넌트 구조화
+- TON 지갑 연결 과정에서 App Manifest 오류 디버깅
+- `tonconnect-manifest.json`의 URL 설정 조정
+
+### 2. 정적 사이트로 배포 준비
+
+**목표**: API 라우트 없이 정적 배포 가능한 구조로 변환
+
+**구현 과정**:
+
+- `next.config.mjs` 수정하여 `output: 'export'` 설정 추가
+- API 라우트(`/api/*`)를 정적 호환 코드로 대체:
+  - `src/app/api/betting/route.ts`
+  - `src/app/api/user/route.ts`
+  - `src/app/api/task/route.ts`
+  - `src/app/api/leaderboard/route.ts`
+  - `src/app/api/sol-price/route.ts`
+- 정적 배포에서 Server Actions 사용 중단:
+  - `src/core/i18n/locale.ts` 파일에서 `"use server";` → `"use client";`로 변경
+  - 쿠키 조작 로직을 클라이언트 측으로 마이그레이션
+  - `LocaleSwitcher` 컴포넌트 수정하여 새로운 locale 설정 후 페이지 리로드 구현
+
+**기술적 과제**:
+
+- 빌드 과정에서 발생한 "Server Actions are not supported with static export" 오류 해결
+- ESLint 경고 및 오류 수정 (React Hooks 의존성, 이스케이프 문자, 캡슐화 등)
+
+### 3. Telegram Bot 및 웹훅 설정
+
+**목표**: 텔레그램 봇과 미니앱 연동을 위한 서버리스 백엔드 구축
+
+**구현 과정**:
+
+1. **봇 기본 설정**:
+
+   - BotFather를 통한 `@fragtopu_bot` 생성
+   - 봇 정보(이름, 설명, 명령어 등) 설정
+
+2. **Edge Function 구현**:
+
+   - Supabase Edge Functions를 활용한 `telegram-bot` 함수 개발
+   - Telegram API와 통신하기 위한 메시지 처리 로직 구현
+   - `/start` 명령어 처리 및 미니앱 실행 버튼 제공
+
+3. **인증 및 보안**:
+   - Edge Function에 `TELEGRAM_BOT_TOKEN` 환경 변수 설정
+   - JWT 인증 비활성화 설정 (`supabase/config.toml` 수정)
+   - 웹훅 설정 및 오류 처리
+
+**기술적 과제**:
+
+- 웹훅 설정 시 401 Unauthorized 오류 해결
+- Edge Function 로그를 통한 요청/응답 디버깅
+- 텔레그램 메시지와 미니앱 URL 경로 문제 해결
+
+### 4. 미니앱 URL 및 배포 최적화
+
+**목표**: 미니앱 진입점 및 사용자 경험 개선
+
+**구현 과정**:
+
+1. **진입점 설정**:
+
+   - `public/telegram-web-app.html` 파일 구현
+   - Telegram WebApp API 초기화 및 메인 앱으로 라우팅
+
+2. **URL 경로 최적화**:
+
+   - 루트 URL을 미니앱 진입점으로 설정
+   - 404 오류 해결을 위한 경로 최적화
+
+3. **배포 파이프라인**:
+   - Vercel을 통한 정적 사이트 배포
+   - Edge Function의 지속적 배포
+
+**기술적 과제**:
+
+- 텔레그램 버튼에서 미니앱 URL 접근 시 404 오류 해결
+- 정적 사이트 배포의 경로 처리 이해 및 최적화
+
+## Telegram Bot 통합 가이드
+
+### 봇 설정 방법
+
+1. **봇 생성**:
+
+   ```
+   @BotFather에서 다음 명령어 실행:
+   /newbot
+   <봇 이름 입력: FragTopu>
+   <봇 사용자명 입력: fragtopu_bot>
+   ```
+
+2. **미니앱 생성**:
+
+   ```
+   /newapp
+   <봇 선택: @fragtopu_bot>
+   <앱 제목 입력: FragTopu>
+   <앱 설명 입력>
+   <앱 아이콘 업로드>
+   ```
+
+3. **명령어 설정**:
+   ```
+   /mybots
+   <봇 선택: @fragtopu_bot>
+   Edit Bot > Edit Commands
+   start - Start the bot and launch FragTopu mini app
+   help - Display help and usage guide
+   rank - Check your current ranking
+   invite - Generate a friend invitation link
+   ```
+
+### Edge Function 구현 상세
+
+**telegram-bot Edge Function의 주요 기능**:
+
+1. **Telegram API 통신**:
+
+   ```typescript
+   async function sendTelegramMessage(chatId: number, text: string, replyMarkup?: any): Promise<any> {
+     const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`
+
+     const params = {
+       chat_id: chatId,
+       text: text,
+       parse_mode: 'Markdown',
+       reply_markup: replyMarkup
+     }
+
+     const response = await fetch(url, {
+       /* ... */
+     })
+     return await response.json()
+   }
+   ```
+
+2. **명령어 처리**:
+
+   ```typescript
+   if (text.includes('/start')) {
+     // 환영 메시지 및 버튼 설정
+     const welcomeMessage = `🎮 Welcome to FragTopu! 🏆...`
+
+     const replyMarkup = {
+       inline_keyboard: [
+         [{ text: 'Start Playing', web_app: { url: 'https://fragmetric-tg-miniapp.vercel.app' } }],
+         [{ text: 'Our Community', url: 'https://t.me/fragmetric_community' }]
+       ]
+     }
+
+     await sendTelegramMessage(chatId, welcomeMessage, replyMarkup)
+   }
+   ```
+
+3. **웹훅 설정**:
+
+   ```bash
+   curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" \
+        -H "Content-Type: application/json" \
+        -d '{"url":"https://yuklvuxnvzgwfoehhvwm.supabase.co/functions/v1/telegram-bot"}'
+   ```
+
+4. **보안 설정** (`supabase/config.toml`):
+   ```toml
+   [functions.telegram-bot]
+   verify_jwt = false
+   ```
+
+### 미니앱 진입점 구현
+
+**telegram-web-app.html의 핵심 기능**:
+
+1. **Telegram WebApp 초기화**:
+
+   ```javascript
+   if (window.Telegram && window.Telegram.WebApp) {
+     try {
+       // Telegram WebApp 준비
+       window.Telegram.WebApp.ready()
+
+       // Viewport 확장
+       window.Telegram.WebApp.expand()
+
+       // 메인 앱으로 이동
+       window.location.href = '/'
+     } catch (error) {
+       console.error('Telegram WebApp 초기화 오류:', error)
+     }
+   }
+   ```
+
+2. **비 Telegram 환경 처리**:
+   ```javascript
+   else {
+     // Telegram 환경이 아닌 경우 일반 웹사이트처럼 표시
+     document.getElementById('loading').style.display = 'none';
+     document.getElementById('app').style.display = 'block';
+   }
+   ```
+
+## 트러블슈팅 및 학습 내용
+
+### 1. Telegram 웹훅 인증 문제
+
+**문제**: Edge Function에서 `401 Unauthorized` 오류 발생
+
+**해결**:
+
+- `supabase/config.toml`에서 JWT 검증 비활성화: `verify_jwt = false`
+- Edge Function 로깅 및 디버깅 강화
+- 응답 헤더에 적절한 CORS 설정 추가
+
+### 2. 미니앱 URL 404 오류
+
+**문제**: 텔레그램 버튼에서 미니앱 URL 접근 시 404 오류
+
+**해결**:
+
+- 상대 경로 대신 절대 URL 사용
+- 복잡한 경로 구조 대신 루트 URL(`https://fragmetric-tg-miniapp.vercel.app`) 사용
+- `telegram-web-app.html`에서 적절한 리디렉션 처리
+
+### 3. 정적 사이트 배포 최적화
+
+**학습 내용**:
+
+- Next.js 정적 내보내기의 경로 처리 이해
+- 서버리스 환경에서의 API 모델링
+- 텔레그램 WebApp API와 외부 웹사이트 통합 방법
+
+## 향후 개발 계획
+
+1. **사용자 경험 개선**:
+
+   - 미니앱 내 로딩 상태 최적화
+   - 다국어 지원 확장
+
+2. **기능 추가**:
+
+   - 더 많은 미니게임 통합
+   - 소셜 기능 강화 (친구 초대, 공유 등)
+   - 토큰 기반 보상 시스템
+
+3. **성능 최적화**:
+   - 이미지 및 리소스 최적화
+   - 클라이언트 측 캐싱 전략
+   - 오프라인 지원 개선

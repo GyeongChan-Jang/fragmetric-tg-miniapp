@@ -136,7 +136,7 @@ Press the button below and let's begin the adventure!`
             {
               text: 'Start Playing',
               web_app: {
-                url: 'https://fragmetric-tg-miniapp.vercel.app/index.html'
+                url: 'https://fragmetric-tg-miniapp.vercel.app'
               }
             }
           ],
