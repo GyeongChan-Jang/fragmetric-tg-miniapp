@@ -6,7 +6,10 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
   title: 'Fragmetric - Solana Restaking Games',
-  description: 'Play clicker and SOL betting games on the Fragmetric platform'
+  description: 'Play clicker and SOL betting games on the Fragmetric platform',
+  icons: {
+    icon: '/favicon-light.png'
+  }
 }
 
 export default function RootLayout({
