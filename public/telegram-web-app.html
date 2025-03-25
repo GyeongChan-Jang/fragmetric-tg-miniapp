@@ -70,10 +70,10 @@
       <p>Loading Mini App...</p>
     </div>
     <div id="app" style="display:none;">
-      <img src="/logo.png" alt="Fragmetric Logo" class="logo">
+      <img src="/images/logo.png" alt="Fragmetric Logo" class="logo">
       <h1>Welcome to Fragmetric</h1>
       <p>This mini app allows you to play games, earn points, and connect with friends.</p>
-      <a href="/" class="button">Launch Mini App</a>
+      <a href="/index.html" class="button">Launch Mini App</a>
     </div>
     <div id="error" style="display:none;">
       <h1>Something went wrong</h1>
@@ -93,8 +93,8 @@
           // Viewport 확장
           window.Telegram.WebApp.expand();
           
-          // 메인 앱으로 이동
-          window.location.href = '/';
+          // 메인 앱으로 이동 (index.html로 명시적 지정)
+          window.location.href = '/index.html';
         } catch (error) {
           console.error('Telegram WebApp 초기화 오류:', error);
           document.getElementById('loading').style.display = 'none';
