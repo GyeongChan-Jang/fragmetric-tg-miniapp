@@ -1,7 +1,7 @@
 # FragTopu: Telegram Mini App
 
 <div align="center">
-  <img src="./assets/telegram-miniapp-banner.png" alt="FragTopu Telegram Mini App" width="600"/>
+  <img src="https://github.com/user-attachments/assets/1649eb0f-3572-492b-a2d2-ce2153012158" alt="FragTopu Telegram Mini App"/>
   <p><em>게임과 소셜 경험을 제공하는 텔레그램 미니앱 플랫폼</em></p>
 </div>
 
@@ -25,7 +25,7 @@ FragTopu는 Telegram Mini App 플랫폼에서 실행되는 게임 및 소셜 경
 ### 1. 클리커 게임
 
 <div align="center">
-  <img src="./assets/clicker-game.gif" alt="Clicker Game" width="300"/>
+  <img width="391" alt="Image" src="https://github.com/user-attachments/assets/3b6c0f18-7a08-4701-920b-52a325d91904" />
 </div>
 
 - **인터랙티브 클리커 메커니즘**
@@ -41,8 +41,10 @@ FragTopu는 Telegram Mini App 플랫폼에서 실행되는 게임 및 소셜 경
 
 ### 2. SOL 가격 예측 베팅
 
-<div align="center">
-  <img src="./assets/betting-game.gif" alt="SOL Betting Game" width="300"/>
+<div align="center" style="display: flex; gap: 10px;">
+  <img width="386" alt="Image" src="https://github.com/user-attachments/assets/4f672204-d24c-44b3-a981-16d95448c13e" />
+  <img width="387" alt="Image" src="https://github.com/user-attachments/assets/549dd1d8-1c5c-4164-9da1-cc74ff6eda53" />
+  <img width="398" alt="Image" src="https://github.com/user-attachments/assets/bac64f6d-894f-4dc5-b26c-1fa30d16182d" />
 </div>
 
 - **실시간 차트 시스템**
@@ -60,7 +62,7 @@ FragTopu는 Telegram Mini App 플랫폼에서 실행되는 게임 및 소셜 경
 ### 3. 리더보드 및 소셜 기능
 
 <div align="center">
-  <img src="./assets/leaderboard.png" alt="Leaderboard" width="300"/>
+  <img width="394" alt="Image" src="https://github.com/user-attachments/assets/97bff17e-a4f0-47be-8dcf-08d4dff1e623" />
 </div>
 
 - **멀티 뷰 리더보드**
@@ -75,8 +77,9 @@ FragTopu는 Telegram Mini App 플랫폼에서 실행되는 게임 및 소셜 경
 
 ### 4. 과제 및 보상 시스템
 
-<div align="center">
-  <img src="./assets/tasks.png" alt="Tasks" width="300"/>
+<div align="center" style="display: flex; gap: 10px;">
+  <img width="388" alt="Image" src="https://github.com/user-attachments/assets/e781d1f2-9576-4461-a1ce-e4dbe59b2f60" />
+  <img width="382" alt="Image" src="https://github.com/user-attachments/assets/5cdbd22d-1c7f-4728-b1e4-174880aaf541" />
 </div>
 
 - **다양한 과제 유형**
@@ -115,12 +118,12 @@ FragTopu는 Telegram Mini App 플랫폼에서 실행되는 게임 및 소셜 경
 - **TON Connect**: TON 블록체인 지갑 연결
 - **Binance API**: 암호화폐 가격 데이터
 
-## 아키텍처
+## Architecture
 
-### 시스템 아키텍처
+### Project Architecture
 
 <div align="center">
-  <img src="./assets/architecture.png" alt="System Architecture" width="700"/>
+  <img src="https://github.com/user-attachments/assets/d067987c-1191-4618-9dfb-69032a503f28" alt="System Architecture"/>
 </div>
 
 FragTopu는 클라이언트-서버리스 아키텍처를 따릅니다:
@@ -145,7 +148,7 @@ FragTopu는 클라이언트-서버리스 아키텍처를 따릅니다:
 ### 데이터 흐름
 
 <div align="center">
-  <img src="./assets/data-flow.png" alt="Data Flow" width="600"/>
+  <img src="https://github.com/user-attachments/assets/8ebecd1a-1376-426d-8073-1c10d1ece805" alt="Data Flow"/>
 </div>
 
 1. **사용자 인증 흐름**
@@ -414,49 +417,97 @@ export const useUserStore = create<UserState>()(
 
 ## 기술적 도전과 해결책
 
-### 1. Static Export와 API 라우트 호환성
+### 1. Supabase: 완전한 서버리스 백엔드 솔루션
 
-**도전**: Next.js의 정적 내보내기 모드에서는 API 라우트 및 서버 액션을 사용할 수 없습니다.
+**Supabase 개요**:
+Supabase는 Firebase의 오픈소스 대안으로, PostgreSQL 데이터베이스를 기반으로 하는 완전한 서버리스 백엔드 솔루션입니다. 백엔드 개발을 위한 다양한 툴과 서비스를 제공하며, API를 자동으로 생성하여 프론트엔드와의 통합을 간소화합니다.
 
-**해결책**:
+**주요 특징**:
 
-- **API 라우트 대체**: Supabase 클라이언트를 사용하여 클라이언트 측에서 직접 데이터베이스와 통신
-- **서버 액션 마이그레이션**: 서버 액션에 의존하는 코드를 클라이언트 측 로직으로 전환
-- **인증 처리**: Edge Functions를 활용하여 인증 및 보안 관련 로직 처리
+- **PostgreSQL 데이터베이스**: 강력한 관계형 데이터베이스를 기반으로 복잡한 쿼리와 관계 모델링 지원
+- **실시간 구독**: 웹소켓을 통한 데이터 변경 사항 실시간 수신
+- **인증 및 권한 관리**: 다양한 소셜 로그인 옵션 및 세밀한 권한 제어 시스템
+- **스토리지**: 파일 저장 및 관리를 위한 통합 솔루션
+- **Edge Functions**: 서버리스 함수 실행 환경
+- **클라이언트 라이브러리**: 다양한 프로그래밍 언어 지원
+
+**도입 이유**:
+
+- Next.js 정적 내보내기와의 호환성: 서버 컴포넌트 없이도 강력한 백엔드 기능 제공
+- 개발 속도 향상: 자동 생성된 API와 SDK로 빠른 개발
+- 확장성: 사용자 증가에 따른 자동 스케일링
+- 비용 효율성: 사용량 기반 요금제로 초기 비용 절감
+
+**구현 방식**:
 
 ```typescript
-// 서버 액션에서 클라이언트 측 로직으로 마이그레이션 예시 (로케일 설정)
-// 이전: "use server" 지시문 사용
-export async function setLocale(locale: string) {
-  const cookieStore = cookies()
-  cookieStore.set('NEXT_LOCALE', locale)
-  return locale
-}
+// Supabase 클라이언트 초기화
+import { createClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
 
-// 이후: 클라이언트 측 쿠키 조작
-export function setLocale(locale: string) {
-  if (typeof window === 'undefined') return locale
+export const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
-  const date = new Date()
-  date.setTime(date.getTime() + 30 * 24 * 60 * 60 * 1000)
-  document.cookie = `NEXT_LOCALE=${locale};expires=${date.toUTCString()};path=/`
+// 테이블 조회 예시
+async function fetchLeaderboard() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, username, total_score, clicker_score, betting_score')
+    .order('total_score', { ascending: false })
+    .limit(20)
 
-  return locale
+  if (error) {
+    console.error('Error fetching leaderboard:', error)
+    return []
+  }
+
+  return data
 }
 ```
 
-### 2. Telegram 인증 보안
+**장점**:
 
-**도전**: Telegram 미니앱 인증 데이터의 안전한 검증과 사용자 데이터 보호
+- 완전한 백엔드 솔루션으로 별도 서버 구축 불필요
+- PostgreSQL의 강력한 기능과 확장성
+- 자동 생성된 API로 개발 속도 향상
+- 실시간 기능 기본 지원
+- 오픈소스 기반으로 커스터마이징 가능
 
-**해결책**:
+**도전과 해결책**:
 
-- **Edge Function 검증**: `verify-telegram` Edge Function에서 HMAC-SHA256 서명 검증
-- **서비스 키 보호**: Supabase 환경 변수를 사용하여 보안 키 관리
-- **상태 관리 분리**: 인증 상태와 사용자 데이터를 별도 스토어로 관리
+- **사용자 인증**: Telegram 사용자 정보를 Supabase 사용자와 연결하기 위해 Edge Function 활용
+- **데이터 동기화**: 클라이언트 상태와 서버 데이터 간의 일관성을 유지하기 위한 최적화 패턴 구현
+- **실시간 업데이트**: 리더보드와 베팅 결과에 대한 즉각적인 피드백을 위한 구독 메커니즘 구현
+
+### 2. Supabase Edge Functions: 서버리스 컴퓨팅의 진화
+
+**Edge Functions 개요**:
+Supabase Edge Functions는 Deno 런타임 환경을 기반으로 하는 서버리스 함수로, 전 세계 Edge 네트워크에서 실행되어 지연 시간을 최소화하고 성능을 최적화합니다. AWS Lambda나 Vercel Edge Functions와 유사하지만, Supabase 플랫폼과 긴밀하게 통합되어 있습니다.
+
+**주요 특징**:
+
+- **Deno 기반**: 현대적이고 안전한 TypeScript/JavaScript 런타임
+- **전역 배포**: 사용자와 가까운 위치에서 함수 실행
+- **TypeScript 지원**: 타입 안전성이 보장된 개발 경험
+- **환경 변수 관리**: 보안 키 및 설정 관리
+- **Supabase 서비스 통합**: 데이터베이스 및 스토리지와의 원활한 연동
+
+**도입 이유**:
+
+- 정적 웹 애플리케이션의 제한 극복: 클라이언트에서 실행할 수 없는 보안 작업 처리
+- 서버 의존성 없이 API 기능 제공: 전체 백엔드 서버 없이도 필요한 API 엔드포인트 구현
+- 민감한 작업 처리: 토큰 검증, 외부 API 호출 등 클라이언트에 노출되면 안 되는 작업 수행
+- 확장성 및 성능: 전역 분산 실행으로 지연 시간 최소화 및 자동 스케일링
+
+**구현 방식**:
 
 ```typescript
-// Edge Function에서 Telegram 인증 데이터 검증
+// Edge Function 예시: Telegram 사용자 검증
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 serve(async (req) => {
   try {
     const { user } = await req.json()
@@ -466,24 +517,74 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Invalid user data' }), { status: 400 })
     }
 
-    // Supabase 클라이언트 초기화
+    // Supabase 클라이언트 초기화 (서비스 롤 키 사용)
     const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-    // 기존 사용자 확인
+    // 데이터베이스 조회 및 처리
     const { data: existingUser } = await supabase.from('users').select('*').eq('id', user.id.toString()).single()
 
-    // 사용자 생성 또는 업데이트 로직
-    // ...
+    // 사용자 데이터 처리 로직
+    let userData
+    if (existingUser) {
+      // 기존 사용자 업데이트
+      userData = existingUser
+    } else {
+      // 새 사용자 생성
+      const { data: newUser } = await supabase
+        .from('users')
+        .insert({
+          id: user.id.toString(),
+          username: user.username || `user${user.id}`,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          language_code: user.language_code,
+          is_premium: user.is_premium || false,
+          referral_code: generateReferralCode(user.id)
+        })
+        .select()
+        .single()
 
-    // 태스크 및 보상 처리
-    // ...
+      userData = newUser
+    }
 
-    return new Response(JSON.stringify({ success: true, user: userData }), { status: 200 })
+    return new Response(JSON.stringify({ success: true, user: userData }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    })
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500 })
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 })
+
+// 고유한 참조 코드 생성 함수
+function generateReferralCode(userId: number): string {
+  return `${userId.toString(36)}${Math.random().toString(36).substring(2, 5)}`.toUpperCase()
+}
 ```
+
+**AWS Lambda, Firebase Functions와의 비교**:
+
+- **AWS Lambda**: 더 많은 런타임 옵션을 제공하지만 설정이 복잡하고 콜드 스타트 지연이 있음
+- **Firebase Functions**: Node.js 환경에 제한되고 더 긴 콜드 스타트 시간
+- **Supabase Edge Functions**: Deno 기반으로 더 빠른 콜드 스타트, TypeScript 기본 지원, Edge 네트워크 활용으로 지연 시간 감소
+
+**장점**:
+
+- 클라이언트 측 코드에서 보안 키를 노출하지 않고 안전한 작업 수행
+- Supabase 서비스와의 원활한 통합
+- Edge 네트워크를 활용한 낮은 지연 시간
+- Deno 런타임의 보안 및 성능 이점
+- 자동 스케일링으로 운영 부담 감소
+
+**도전과 해결책**:
+
+- **개발 환경 구성**: Supabase CLI를 활용한 로컬 개발 및 테스트 환경 설정
+- **디버깅 제한**: 클라우드 환경에서의 디버깅 한계를 로깅 및 모니터링으로 극복
+- **콜드 스타트**: 첫 실행 시 지연 시간을 최소화하기 위한 코드 최적화
+- **환경 변수 관리**: 보안 키 및 설정의 안전한 관리를 위한 Supabase 대시보드 활용
 
 ### 3. 베팅 게임 실시간 데이터
 
@@ -536,42 +637,67 @@ useEffect(() => {
 }, [fetchCandleData])
 ```
 
-### 4. UX/UI 최적화
+### 4. Telegram Mini App UX/UI 최적화
 
-**도전**: Telegram 미니앱 환경에서의 최적화된 사용자 경험 제공
+**도전**: 제한된 Telegram 미니앱 환경에서 네이티브 앱과 같은 사용자 경험 제공
 
 **해결책**:
 
-- **중첩된 애니메이션**: Framer Motion을 활용한 매끄러운 전환 효과
-- **반응형 디자인**: 다양한 화면 크기 및 기기 지원
-- **성능 최적화**: 메모이제이션 및 지연 로딩 기법 적용
+- **Telegram SDK 활용**: 플랫폼 특화 기능 및 UI 컴포넌트 통합
+- **반응형 디자인**: 다양한 기기 및 화면 크기 지원을 위한 적응형 레이아웃
+- **애니메이션 최적화**: Framer Motion을 활용한 부드러운 전환 효과
+
+**최적화 전략**:
+
+- **성능 우선 디자인**: 60fps 애니메이션 및 빠른 응답성 유지
+- **점진적 향상**: 기본 기능부터 보장 후 고급 기능 추가
+- **오프라인 지원**: 로컬 상태로 오프라인 사용성 개선
 
 ```typescript
-// 성능을 위한 애니메이션 최적화 예시
-const buttonVariants = {
-  initial: { scale: 1 },
-  pressed: { scale: 0.95 },
-  tilt: (info: { x: number; y: number }) => ({
-    rotateX: info.y * 20,
-    rotateY: -info.x * 20,
-    transition: { type: 'spring', stiffness: 400, damping: 15 }
-  })
-}
+// Telegram Mini App 특화 최적화 예시: 앱 구성과 이벤트 처리
+function setupTelegramApp() {
+  // 뒤로가기 버튼 처리 및 메인 버튼 설정
+  useEffect(() => {
+    // 백 버튼 설정
+    const handleBackButton = () => {
+      if (currentView !== 'home') {
+        setCurrentView('home')
+        return true // 이벤트 처리됨
+      }
+      return false // 기본 동작 수행
+    }
 
-// 컴포넌트에서 활용
-;<motion.div
-  ref={buttonRef}
-  variants={buttonVariants}
-  initial="initial"
-  animate={isPressed ? 'pressed' : 'initial'}
-  custom={{ x: tiltX, y: tiltY }}
-  style={{ transformStyle: 'preserve-3d', willChange: 'transform' }}
-  className="h-48 w-48 bg-blue-500 rounded-full"
-  onClick={handleClick}
->
-  <Image src="/images/topu.png" alt="Topu" width={160} height={160} />
-</motion.div>
+    // 메인 버튼 설정
+    miniApp.enableClosingConfirmation()
+    backButton.onClick(handleBackButton)
+
+    // 테마 변경 감지
+    const handleThemeChange = () => {
+      setIsDarkMode(miniApp.isDark)
+    }
+
+    miniApp.onEvent('themeChanged', handleThemeChange)
+
+    return () => {
+      backButton.offClick(handleBackButton)
+      miniApp.offEvent('themeChanged', handleThemeChange)
+    }
+  }, [currentView, setCurrentView])
+
+  // 하드웨어 가속 및 성능 최적화 요소
+  return (
+    <div className="app-container" style={{ willChange: 'transform', backfaceVisibility: 'hidden' }}>
+      {/* 앱 컴포넌트 */}
+    </div>
+  )
+}
 ```
+
+**Telegram 플랫폼 특화 최적화**:
+
+- **웹앱 시작 파라미터 처리**: 초대 코드, 딥링크 등의 시작 파라미터 처리
+- **해피패스 최적화**: 주요 사용자 흐름의 마찰 최소화
+- **장치별 UI 조정**: iOS/Android 플랫폼 감지 및 특화 UI 제공
 
 ## 성능 최적화
 
@@ -646,7 +772,7 @@ cp .env.local.example .env.local
 pnpm dev
 ```
 
-### 배포
+### Deploy
 
 ```bash
 # 정적 사이트 빌드
@@ -662,10 +788,10 @@ pnpm dlx vercel deploy --prod
 2. 데이터베이스 스키마 설정
 3. Edge Functions 배포
 
-## 기여 및 피드백
+## Contribution
 
 이 프로젝트에 기여하거나 피드백을 제공하고 싶으시면 이슈를 열거나 PR을 제출해 주세요. 모든 기여와 제안은 환영합니다!
 
-## 라이선스
+## License
 
 MIT © FragTopu Team
