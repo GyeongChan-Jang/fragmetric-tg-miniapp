@@ -32,7 +32,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       // 태스크 정보 및 보상 가져오기
       const { data: userTaskData, error: fetchError } = await supabase
         .from('user_tasks')
-        .select('id, task_id, task:tasks(score_reward)')
+        .select('id, task_id, task:tasks(reward)')
         .eq('id', userTaskId)
         .single()
 
@@ -73,7 +73,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
 
       // 보상 적용
-      const reward = userTaskData.task?.[0]?.score_reward || 0
+      const reward = userTaskData.task?.[0]?.reward || 0
       const user = useUserStore.getState().user
 
       if (user && reward > 0) {

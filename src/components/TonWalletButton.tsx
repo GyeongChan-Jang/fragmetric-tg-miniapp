@@ -1,7 +1,6 @@
 import { useTonWalletConnect } from '@/hooks/useTonWalletConnect'
 import { useWalletStore } from '@/store/walletStore'
 import { TonConnectButton } from '@tonconnect/ui-react'
-import { FiExternalLink, FiCheckCircle } from 'react-icons/fi'
 import { FC } from 'react'
 import Image from 'next/image'
 

@@ -42,7 +42,7 @@ export interface Task {
   id: string
   name: string
   description: string
-  score_reward: number
+  reward: number
   type: TaskType
   task_key: string
 }

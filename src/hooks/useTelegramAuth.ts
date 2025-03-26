@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useUserStore } from '@/store/userStore'
 import { User } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { initData, useSignal } from '@telegram-apps/sdk-react'
 
 export interface TelegramAuthHook {
   isLoading: boolean
@@ -14,60 +15,46 @@ export interface TelegramAuthHook {
 /**
  * Telegram 인증을 처리하는 훅
  *
- * Telegram WebApp API로부터 사용자 정보를 받아 Supabase Edge Function을 통해 검증합니다.
- * 검증이 성공하면 사용자 정보를 저장하고, 실패하면 로컬 사용자를 초기화합니다.
+ * @telegram-apps/sdk-react의 initData를 사용하여 사용자 정보를 가져오고
+ * Supabase에 저장합니다.
  */
 export function useTelegramAuth(): TelegramAuthHook {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const { user, setUser, initUser } = useUserStore()
+  const [hasInitialized, setHasInitialized] = useState(false)
 
-  /**
-   * Telegram WebApp 초기화 함수
-   */
-  const initTelegramApp = () => {
-    // Telegram WebApp API가 있는지 확인
-    if (window.Telegram?.WebApp) {
-      // 앱 준비 완료 알림
-      window.Telegram.WebApp.ready()
-      console.log('Telegram WebApp API is ready')
-
-      // Viewport 조정
-      window.Telegram.WebApp.expand()
-    }
-  }
+  // @telegram-apps/sdk-react에서 사용자 정보 가져오기
+  const initDataUser = useSignal(initData.user)
+  const initDataState = useSignal(initData.state)
 
   /**
    * 사용자 인증 초기화 함수
    */
-  const initTelegramAuth = async () => {
+  const initTelegramAuth = useCallback(async () => {
+    // 이미 로딩 중이거나 초기화가 완료된 경우 중복 실행 방지
+    if (isLoading || hasInitialized) return
+
     setIsLoading(true)
     setError(null)
 
     try {
-      // Telegram WebApp API가 있는지 확인
-      if (window.Telegram?.WebApp) {
-        const webApp = window.Telegram.WebApp
-        const initData = webApp.initData
+      // SDK에서 제공하는 사용자 정보가 있는지 확인
+      if (initDataUser && initDataState) {
+        console.log('Telegram user found from SDK:', initDataUser)
 
-        if (!initData) {
-          throw new Error('No Telegram init data available')
-        }
-
-        console.log('Verifying Telegram user...')
-
-        // Supabase Edge Function을 통해 검증
+        // Supabase Edge Function 호출하여 사용자 등록/업데이트
         const { data, error } = await supabase.functions.invoke('verify-telegram', {
-          body: { initData }
+          body: { user: initDataUser }
         })
 
         if (error) {
           throw new Error(error.message || 'Telegram authentication failed')
         }
 
-        if (!data.valid) {
-          throw new Error('Invalid Telegram data')
+        if (!data.success) {
+          throw new Error('User verification failed')
         }
 
         // 사용자 정보 저장
@@ -78,10 +65,10 @@ export function useTelegramAuth(): TelegramAuthHook {
         // 로컬 스토리지에 사용자 ID 저장
         localStorage.setItem('user-id', telegramUser.id)
 
-        console.log('Telegram 인증 성공:', telegramUser)
+        console.log('사용자 등록/업데이트 완료:', telegramUser)
       } else {
-        // Telegram WebApp API가 없는 경우 로컬 데이터 사용
-        console.log('Telegram WebApp API not available, using local data')
+        // SDK에서 사용자 정보를 가져올 수 없는 경우
+        console.log('No Telegram user data from SDK, checking localStorage')
 
         // 로컬 스토리지에서 사용자 ID 확인
         const storedUserId = localStorage.getItem('user-id')
@@ -105,6 +92,9 @@ export function useTelegramAuth(): TelegramAuthHook {
           initUser()
         }
       }
+
+      // 초기화 완료 표시
+      setHasInitialized(true)
     } catch (err) {
       console.error('Telegram 인증 오류:', err)
       setError(err instanceof Error ? err.message : '인증에 실패했습니다')
@@ -114,12 +104,7 @@ export function useTelegramAuth(): TelegramAuthHook {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  // 컴포넌트 마운트 시 Telegram WebApp 초기화
-  useEffect(() => {
-    initTelegramApp()
-  }, [])
+  }, [initDataUser, initDataState, setUser, initUser, isLoading, hasInitialized])
 
   return {
     isLoading,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useTabStore } from '@/store/tabStore'
 import { useUserStore } from '@/store/userStore'
 import { useTelegramAuth } from '@/hooks/useTelegramAuth'
@@ -12,13 +12,18 @@ import Account from '@/components/Account/Account'
 
 export default function Home() {
   const { activeTab } = useTabStore()
-  const { user, isLoading: userLoading, error: userError } = useUserStore()
+  const { isLoading: userLoading, error: userError } = useUserStore()
   const { isLoading: authLoading, error: authError, initTelegramAuth } = useTelegramAuth()
+  const [authInitialized, setAuthInitialized] = useState(false)
 
   // 사용자 인증 처리
   useEffect(() => {
-    initTelegramAuth()
-  }, [initTelegramAuth])
+    if (!authInitialized) {
+      initTelegramAuth().then(() => {
+        setAuthInitialized(true)
+      })
+    }
+  }, [initTelegramAuth, authInitialized])
 
   const isLoading = userLoading || authLoading
   const error = userError || authError
@@ -39,17 +44,22 @@ export default function Home() {
     }
   }
 
-  return (
-    <MainContainer>
-      {isLoading ? (
-        <div className="flex justify-center items-center h-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-        </div>
-      ) : error ? (
+  // 로딩 중이거나 에러가 있는 경우 전체 화면에 표시
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen w-full">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen w-full">
         <div className="p-4 bg-red-100 text-red-700 rounded-md">{error}</div>
-      ) : (
-        renderContent()
-      )}
-    </MainContainer>
-  )
+      </div>
+    )
+  }
+
+  return <MainContainer>{renderContent()}</MainContainer>
 }

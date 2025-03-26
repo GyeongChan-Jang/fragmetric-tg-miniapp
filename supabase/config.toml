@@ -1,2 +1,5 @@
 [functions.telegram-bot]
 verify_jwt = false 
+
+[functions.verify-telegram]
+verify_jwt = false 

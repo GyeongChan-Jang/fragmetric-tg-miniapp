@@ -9,12 +9,97 @@ import BettingHistory from './BettingHistory'
 
 type TimeFrame = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 
+// 결과 모달 컴포넌트
+interface ResultModalProps {
+  isOpen: boolean
+  result: 'WIN' | 'LOSE' | null
+  startPrice: number
+  endPrice: number
+  betType: BetType | null
+  scoreEarned: number
+  onClose: () => void
+}
+
+const ResultModal: React.FC<ResultModalProps> = ({
+  isOpen,
+  result,
+  startPrice,
+  endPrice,
+  betType,
+  scoreEarned,
+  onClose
+}) => {
+  if (!isOpen || !result || !betType) return null
+
+  const isWin = result === 'WIN'
+  const bgColor = isWin ? 'bg-green-100' : 'bg-red-100'
+  const borderColor = isWin ? 'border-green-300' : 'border-red-300'
+  const titleColor = isWin ? 'text-green-600' : 'text-red-600'
+  const iconBg = isWin ? 'bg-green-500' : 'bg-red-500'
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className={`${bgColor} ${borderColor} border-2 rounded-lg p-6 w-full max-w-sm shadow-lg`}
+      >
+        <div className="flex flex-col items-center mb-4">
+          <div className={`${iconBg} text-white p-3 rounded-full mb-2`}>
+            {isWin ? <img src="/images/good_topu.webp" alt="win" /> : <img src="/images/bonk_topu.webp" alt="lose" />}
+          </div>
+          <h3 className={`mt-2 text-xl font-bold ${titleColor}`}>{isWin ? '🎉 You Won!' : '😢 You Lost'}</h3>
+        </div>
+
+        {/* <div className="mb-4">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="text-gray-600">Bet Type:</div>
+            <div className={`font-semibold ${betType === 'UP' ? 'text-green-600' : 'text-red-600'}`}>{betType}</div>
+
+            <div className="text-gray-600">Start Price:</div>
+            <div className="font-semibold">${startPrice.toFixed(2)}</div>
+
+            <div className="text-gray-600">End Price:</div>
+            <div className="font-semibold">${endPrice.toFixed(2)}</div>
+
+            <div className="text-gray-600">Result:</div>
+            <div className={`font-semibold ${isWin ? 'text-green-600' : 'text-red-600'}`}>
+              {isWin ? `+${scoreEarned} points` : 'No points'}
+            </div>
+          </div>
+        </div> */}
+
+        {/* <div className={`text-center p-2 rounded-md ${isWin ? 'bg-green-200' : 'bg-red-200'} mb-4`}>
+          {isWin
+            ? `Congratulations! You predicted correctly and earned ${scoreEarned} points.`
+            : `Better luck next time. The price moved against your prediction.`}
+        </div> */}
+
+        <button onClick={onClose} className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg">
+          Continue
+        </button>
+      </motion.div>
+    </div>
+  )
+}
+
 export const SolBetting: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('1m')
   const [isChartReady, setIsChartReady] = useState(false)
+
+  // 결과 모달 상태
+  const [showModal, setShowModal] = useState(false)
+  const [betResult, setBetResult] = useState<'WIN' | 'LOSE' | null>(null)
+  const [resultData, setResultData] = useState({
+    startPrice: 0,
+    endPrice: 0,
+    betType: null as BetType | null,
+    scoreEarned: 0
+  })
 
   const { user } = useUserStore()
   const { isConnected } = useWalletStore()
@@ -176,8 +261,20 @@ export const SolBetting: React.FC = () => {
     // 획득 점수 계산
     const scoreEarned = result === 'WIN' ? 10 : 0 // 승리 시 10점, 패배 시 0점
 
+    // 결과 모달 데이터 설정
+    setBetResult(result)
+    setResultData({
+      startPrice,
+      endPrice,
+      betType,
+      scoreEarned: result === 'WIN' ? 10 : 0
+    })
+
     // 베팅 결과 업데이트
     updateBetResult(currentBet.id, endPrice, result, scoreEarned)
+
+    // 모달 표시
+    setShowModal(true)
   }, [currentBet, currentPrice, updateBetResult])
 
   // 데이터 로드 및 업데이트
@@ -254,20 +351,18 @@ export const SolBetting: React.FC = () => {
 
   // 사용자 베팅 처리
   const handlePlaceBet = (type: BetType) => {
-    if (!isConnected) {
-      // 지갑이 연결되지 않은 경우 오류 메시지 표시
-      useBettingStore.getState().resetError()
-      useBettingStore.setState({ error: 'TON 지갑 연결이 필요합니다. 상단의 Connect 버튼을 클릭하세요.' })
-      return
-    }
-
     if (isLoading || currentBet || !user || user.daily_bets >= MAX_DAILY_BETS) return
 
     placeBet(type)
   }
 
+  // 모달 닫기 핸들러
+  const handleCloseModal = () => {
+    setShowModal(false)
+  }
+
   // 버튼 비활성화 여부 확인
-  const isBetButtonDisabled = !isConnected || remainingBets <= 0 || isLoading || !!currentBet
+  const isBetButtonDisabled = remainingBets <= 0 || isLoading || !!currentBet
 
   return (
     <div className="flex flex-col w-full bg-white text-gray-800 p-4 rounded-lg">
@@ -365,12 +460,6 @@ export const SolBetting: React.FC = () => {
         </div>
       </div>
 
-      {!isConnected && (
-        <div className="mb-4 p-3 bg-blue-100 border border-blue-300 rounded-lg text-blue-700">
-          SOL 베팅을 위해 상단의 TON 지갑 연결 버튼을 클릭하여 지갑을 연결해 주세요.
-        </div>
-      )}
-
       {error && <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded-lg text-red-600">{error}</div>}
 
       {/* 베팅 히스토리 */}
@@ -378,6 +467,21 @@ export const SolBetting: React.FC = () => {
         <h3 className="text-lg font-bold text-gray-800 mb-2">Betting History</h3>
         <BettingHistory bets={bets} />
       </div>
+
+      {/* 결과 모달 */}
+      <AnimatePresence>
+        {showModal && (
+          <ResultModal
+            isOpen={showModal}
+            result={betResult}
+            startPrice={resultData.startPrice}
+            endPrice={resultData.endPrice}
+            betType={resultData.betType}
+            scoreEarned={resultData.scoreEarned}
+            onClose={handleCloseModal}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

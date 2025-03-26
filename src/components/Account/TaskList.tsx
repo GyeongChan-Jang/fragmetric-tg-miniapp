@@ -91,9 +91,11 @@ export const TaskList: React.FC = () => {
                 <div className="flex-1">
                   <div className="flex items-center">
                     <span className="mr-2 text-lg">{getTaskIcon(userTask.task?.type as TaskType)}</span>
-                    <h3 className="font-semibold">{userTask.task?.name}</h3>
+                    <div className="flex-grow text-left">
+                      <h3 className="text-base font-semibold text-gray-800">{userTask.task?.name}</h3>
+                      <p className="text-sm text-gray-600">{userTask.task?.description}</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 mt-1">{userTask.task?.description}</p>
 
                   {userTask.completed && userTask.completed_at && (
                     <p className="text-xs text-green-600 mt-2">
@@ -105,7 +107,7 @@ export const TaskList: React.FC = () => {
                 <div className="ml-4">
                   {userTask.completed ? (
                     <div className="bg-green-500 text-white text-xs font-medium px-3 py-1 rounded-full">
-                      +{userTask.task?.score_reward || 0} pts
+                      +{userTask.task?.reward || 0} pts
                     </div>
                   ) : (
                     <button

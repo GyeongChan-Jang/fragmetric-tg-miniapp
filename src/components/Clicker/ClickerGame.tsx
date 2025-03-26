@@ -33,9 +33,9 @@ export const ClickerGame: React.FC = () => {
   const [tiltX, setTiltX] = useState(0)
   const [tiltY, setTiltY] = useState(0)
 
-  // 부드러운 틸트 애니메이션을 위한 스프링 설정
-  const springTiltX = useSpring(0, { stiffness: 300, damping: 20 })
-  const springTiltY = useSpring(0, { stiffness: 300, damping: 20 })
+  // 부드러운 틸트 애니메이션을 위한 스프링 설정 - 더 빠른 복원을 위해 stiffness 증가, damping 감소
+  const springTiltX = useSpring(0, { stiffness: 400, damping: 15 })
+  const springTiltY = useSpring(0, { stiffness: 400, damping: 15 })
 
   const rank = getRank()
 
@@ -143,7 +143,7 @@ export const ClickerGame: React.FC = () => {
     }, 1000)
 
     // 클릭 애니메이션 시작
-    setTimeout(() => setIsAnimating(false), 300)
+    setTimeout(() => setIsAnimating(false), 150) // 더 빠른 애니메이션을 위해 시간 단축
 
     // 클릭 위치에 따른 틸트 효과 계산
     // 중앙을 기준으로 상대적인 위치 (-1 ~ 1 범위)
@@ -154,15 +154,15 @@ export const ClickerGame: React.FC = () => {
     const offsetX = (x - centerX) / centerX
     const offsetY = (y - centerY) / centerY
 
-    // 틸트 각도 설정 (최대 15도)
-    springTiltX.set(-offsetY * 15) // Y축 기준으로 틸트 (위/아래 클릭 = X축 회전)
-    springTiltY.set(offsetX * 15) // X축 기준으로 틸트 (좌/우 클릭 = Y축 회전)
+    // 틸트 각도 설정 (최대 20도로 증가)
+    springTiltX.set(-offsetY * 20) // Y축 기준으로 틸트 (위/아래 클릭 = X축 회전)
+    springTiltY.set(offsetX * 20) // X축 기준으로 틸트 (좌/우 클릭 = Y축 회전)
 
-    // 0.1초 후 원래 위치로 복귀
+    // 틸트 복원 시간 단축 (0.1초 → 0.06초)
     setTimeout(() => {
       springTiltX.set(0)
       springTiltY.set(0)
-    }, 100)
+    }, 60)
   }
 
   // 클릭 포인트 렌더링
@@ -239,12 +239,18 @@ export const ClickerGame: React.FC = () => {
           {clickPoints.map((point) => (
             <motion.div
               key={point.id}
-              initial={{ opacity: 1, y: 0 }}
-              animate={{ opacity: 0, y: -40 }}
+              initial={{ opacity: 1, y: 0, scale: 1.2 }}
+              animate={{ opacity: 0, y: -50, scale: 1.6 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 1 }}
-              className="absolute text-green-600 font-bold text-lg"
-              style={{ left: point.x, top: point.y, zIndex: 20 }}
+              transition={{ duration: 0.8 }}
+              className="absolute font-extrabold text-2xl"
+              style={{
+                left: point.x,
+                top: point.y,
+                zIndex: 20,
+                color: point.value > 1 ? '#fbbf24' : '#10b981', // 부스트 점수는 황금색, 일반 점수는 녹색
+                textShadow: '0px 0px 8px rgba(255,255,255,0.8), 0px 0px 3px rgba(0,0,0,0.3)' // 텍스트에 그림자 효과 추가
+              }}
             >
               +{point.value}
             </motion.div>
@@ -258,16 +264,17 @@ export const ClickerGame: React.FC = () => {
           style={{
             rotateX: tiltX,
             rotateY: tiltY,
-            transformStyle: 'preserve-3d'
+            transformStyle: 'preserve-3d',
+            transition: 'all 0.01s ease-out'
           }}
-          className="h-48 w-48 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl perspective-500"
+          className="h-52 w-52 bg-blue-500 rounded-full flex items-center justify-center cursor-pointer shadow-lg hover:shadow-xl perspective-500"
           onClick={handleClick}
         >
           <Image
             src="/images/topu-face-sang.png"
             alt="Topu"
-            width={160}
-            height={160}
+            width={180}
+            height={180}
             className="object-contain"
             onError={(e) => {
               const target = e.target as HTMLImageElement
