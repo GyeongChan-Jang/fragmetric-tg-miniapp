@@ -120,7 +120,7 @@ export const SolBetting: React.FC = () => {
   } = useBettingStore()
 
   // 최대 일일 베팅 횟수
-  const MAX_DAILY_BETS = 10
+  const MAX_DAILY_BETS = 20
   const remainingBets = user ? MAX_DAILY_BETS - user.daily_bets : 0
 
   // 차트 초기화 함수
@@ -259,7 +259,7 @@ export const SolBetting: React.FC = () => {
     const result = betType === 'UP' ? (endPrice > startPrice ? 'WIN' : 'LOSE') : endPrice < startPrice ? 'WIN' : 'LOSE'
 
     // 획득 점수 계산
-    const scoreEarned = result === 'WIN' ? 10 : 0 // 승리 시 10점, 패배 시 0점
+    const scoreEarned = result === 'WIN' ? 100 : 0 // 승리 시 100점, 패배 시 0점
 
     // 결과 모달 데이터 설정
     setBetResult(result)
