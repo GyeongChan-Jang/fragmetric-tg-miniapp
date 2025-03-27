@@ -88,6 +88,7 @@ export const SolBetting: React.FC = () => {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const websocketRef = useRef<WebSocket | null>(null)
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('1m')
   const [isChartReady, setIsChartReady] = useState(false)
 
@@ -212,7 +213,7 @@ export const SolBetting: React.FC = () => {
     }
   }, [initializeChart, cleanupChart])
 
-  // 차트 데이터 가져오기 함수
+  // 차트 데이터 가져오기 함수 - 초기 데이터용
   const fetchCandleData = useCallback(async () => {
     if (!isChartReady || !candleSeriesRef.current) return
 
@@ -247,6 +248,63 @@ export const SolBetting: React.FC = () => {
       console.error('캔들 데이터 가져오기 오류:', error)
     }
   }, [timeFrame, isChartReady, setCurrentPrice])
+
+  // WebSocket 연결 설정 함수
+  const setupWebSocket = useCallback(() => {
+    if (websocketRef.current) {
+      websocketRef.current.close()
+    }
+
+    // Binance WebSocket 엔드포인트 - 심볼과 타임프레임에 맞는 kline/candlestick 스트림
+    const wsEndpoint = `wss://stream.binance.com:9443/ws/solusdt@kline_${timeFrame}`
+    const ws = new WebSocket(wsEndpoint)
+
+    ws.onopen = () => {
+      console.log('WebSocket 연결 성공')
+    }
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data)
+        if (message.k && candleSeriesRef.current) {
+          const { t, o, h, l, c, v, T, i } = message.k
+          
+          // 새 캔들스틱 데이터
+          const candleData = {
+            time: (t / 1000) as Time,
+            open: parseFloat(o),
+            high: parseFloat(h),
+            low: parseFloat(l),
+            close: parseFloat(c)
+          }
+
+          // 현재 가격 업데이트
+          setCurrentPrice(parseFloat(c))
+
+          // 차트 업데이트 - 새 데이터 또는 마지막 캔들 업데이트
+          candleSeriesRef.current.update(candleData)
+        }
+      } catch (error) {
+        console.error('WebSocket 메시지 처리 오류:', error)
+      }
+    }
+
+    ws.onerror = (error) => {
+      console.error('WebSocket 오류:', error)
+    }
+
+    ws.onclose = () => {
+      console.log('WebSocket 연결 종료')
+    }
+
+    websocketRef.current = ws
+
+    return () => {
+      if (websocketRef.current) {
+        websocketRef.current.close()
+      }
+    }
+  }, [timeFrame, setCurrentPrice])
 
   // 베팅 결과 처리 함수
   const processBetResult = useCallback(() => {
@@ -287,24 +345,26 @@ export const SolBetting: React.FC = () => {
     }
 
     // 초기 데이터 로드
-    fetchCandleData()
-
-    // 주기적인 데이터 업데이트 (실제 구현에서는 웹소켓 사용 권장)
-    const interval = setInterval(() => {
-      fetchCandleData()
-    }, 10000) // 10초마다 업데이트
+    fetchCandleData().then(() => {
+      // 초기 데이터 로드 후 WebSocket 연결
+      setupWebSocket()
+    })
 
     return () => {
-      clearInterval(interval)
+      if (websocketRef.current) {
+        websocketRef.current.close()
+      }
     }
-  }, [fetchCandleData, isChartReady, fetchBettingHistory, user?.id])
+  }, [fetchCandleData, isChartReady, fetchBettingHistory, user?.id, setupWebSocket])
 
-  // 타임프레임 변경시 데이터 다시 로드
+  // 타임프레임 변경시 데이터 다시 로드 및 WebSocket 재연결
   useEffect(() => {
     if (isChartReady) {
-      fetchCandleData()
+      fetchCandleData().then(() => {
+        setupWebSocket()
+      })
     }
-  }, [timeFrame, fetchCandleData, isChartReady])
+  }, [timeFrame, fetchCandleData, isChartReady, setupWebSocket])
 
   // 타임프레임에 따른 초 단위 변환
   const getTimeFrameSeconds = (tf: TimeFrame): number => {
