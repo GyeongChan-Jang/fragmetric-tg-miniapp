@@ -335,7 +335,7 @@ export const SolBetting: React.FC = () => {
     }
 
     // 획득 점수 계산 - DRAW일 경우 0점
-    const scoreEarned = result === 'WIN' ? 100 : 0
+    const scoreEarned = result === 'WIN' ? 100 : 0 // DRAW or LOSE: 0 points
 
     // 결과 모달 데이터 설정
     setBetResult(result)
