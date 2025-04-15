@@ -346,8 +346,13 @@ export const SolBetting: React.FC = () => {
       scoreEarned: result === 'WIN' ? 10 : 0
     })
 
-    // 베팅 결과 업데이트 - 타입 캐스팅을 사용하여 DRAW도 처리될 수 있게 합니다
-    updateBetResult(currentBet.id, endPrice, result as 'WIN' | 'LOSE', scoreEarned)
+    // 베팅 결과 업데이트
+    if (result === 'DRAW') {
+      // Handle DRAW case specifically if needed
+      updateBetResult(currentBet.id, endPrice, 'DRAW', scoreEarned)
+    } else {
+      updateBetResult(currentBet.id, endPrice, result, scoreEarned)
+    }
 
     // 모달 표시
     setShowModal(true)
