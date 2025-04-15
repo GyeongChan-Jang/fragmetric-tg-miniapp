@@ -12,7 +12,7 @@ type TimeFrame = '1m' | '5m' | '15m' | '1h' | '4h' | '1d'
 // 결과 모달 컴포넌트
 interface ResultModalProps {
   isOpen: boolean
-  result: 'WIN' | 'LOSE' | null
+  result: 'WIN' | 'LOSE' | 'DRAW' | null
   startPrice: number
   endPrice: number
   betType: BetType | null
@@ -32,10 +32,11 @@ const ResultModal: React.FC<ResultModalProps> = ({
   if (!isOpen || !result || !betType) return null
 
   const isWin = result === 'WIN'
-  const bgColor = isWin ? 'bg-green-100' : 'bg-red-100'
-  const borderColor = isWin ? 'border-green-300' : 'border-red-300'
-  const titleColor = isWin ? 'text-green-600' : 'text-red-600'
-  const iconBg = isWin ? 'bg-green-500' : 'bg-red-500'
+  const isDraw = result === 'DRAW'
+  const bgColor = isWin ? 'bg-green-100' : isDraw ? 'bg-yellow-100' : 'bg-red-100'
+  const borderColor = isWin ? 'border-green-300' : isDraw ? 'border-yellow-300' : 'border-red-300'
+  const titleColor = isWin ? 'text-green-600' : isDraw ? 'text-yellow-600' : 'text-red-600'
+  const iconBg = isWin ? 'bg-green-500' : isDraw ? 'bg-yellow-500' : 'bg-red-500'
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50 p-4">
@@ -47,9 +48,16 @@ const ResultModal: React.FC<ResultModalProps> = ({
       >
         <div className="flex flex-col items-center mb-4">
           <div className={`${iconBg} text-white p-3 rounded-full mb-2`}>
-            {isWin ? <img src="/images/good_topu.webp" alt="win" /> : <img src="/images/bonk_topu.webp" alt="lose" />}
+            {isWin ? 
+              <img src="/images/good_topu.webp" alt="win" /> : 
+              isDraw ? 
+              <img src="/images/draw-topu.webp" alt="draw" /> : 
+              <img src="/images/bonk_topu.webp" alt="lose" />
+            }
           </div>
-          <h3 className={`mt-2 text-xl font-bold ${titleColor}`}>{isWin ? '🎉 You Won!' : '😢 You Lost'}</h3>
+          <h3 className={`mt-2 text-xl font-bold ${titleColor}`}>
+            {isWin ? '🎉 You Won!' : isDraw ? '😐 It\'s a Draw!' : '😢 You Lost'}
+          </h3>
         </div>
 
         {/* <div className="mb-4">
@@ -94,7 +102,7 @@ export const SolBetting: React.FC = () => {
 
   // 결과 모달 상태
   const [showModal, setShowModal] = useState(false)
-  const [betResult, setBetResult] = useState<'WIN' | 'LOSE' | null>(null)
+  const [betResult, setBetResult] = useState<'WIN' | 'LOSE' | 'DRAW' | null>(null)
   const [resultData, setResultData] = useState({
     startPrice: 0,
     endPrice: 0,
@@ -314,10 +322,20 @@ export const SolBetting: React.FC = () => {
     const startPrice = currentBet.sol_price_start
     const endPrice = currentPrice
     const betType = currentBet.type
-    const result = betType === 'UP' ? (endPrice > startPrice ? 'WIN' : 'LOSE') : endPrice < startPrice ? 'WIN' : 'LOSE'
+    
+    // DRAW 추가: 시작가와 종료가가 같으면 DRAW 처리
+    let result: 'WIN' | 'LOSE' | 'DRAW'
+    
+    if (startPrice === endPrice) {
+      result = 'DRAW'
+    } else if (betType === 'UP') {
+      result = endPrice > startPrice ? 'WIN' : 'LOSE'
+    } else { // betType === 'DOWN'
+      result = endPrice < startPrice ? 'WIN' : 'LOSE'
+    }
 
-    // 획득 점수 계산
-    const scoreEarned = result === 'WIN' ? 100 : 0 // 승리 시 100점, 패배 시 0점
+    // 획득 점수 계산 - DRAW일 경우 0점
+    const scoreEarned = result === 'WIN' ? 100 : 0 // DRAW or LOSE: 0 points
 
     // 결과 모달 데이터 설정
     setBetResult(result)
@@ -329,7 +347,12 @@ export const SolBetting: React.FC = () => {
     })
 
     // 베팅 결과 업데이트
-    updateBetResult(currentBet.id, endPrice, result, scoreEarned)
+    if (result === 'DRAW') {
+      // Handle DRAW case specifically if needed
+      updateBetResult(currentBet.id, endPrice, 'DRAW', scoreEarned)
+    } else {
+      updateBetResult(currentBet.id, endPrice, result, scoreEarned)
+    }
 
     // 모달 표시
     setShowModal(true)
