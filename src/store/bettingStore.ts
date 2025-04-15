@@ -20,7 +20,7 @@ interface BettingState {
   setCountdown: (seconds: number | null) => void
   placeBet: (type: BetType) => Promise<void>
   fetchBettingHistory: (userId: string) => Promise<void>
-  updateBetResult: (betId: string, solPriceEnd: number, result: 'WIN' | 'LOSE', scoreEarned: number) => Promise<void>
+  updateBetResult: (betId: string, solPriceEnd: number, result: 'WIN' | 'LOSE' | 'DRAW', scoreEarned: number) => Promise<void>
   resetError: () => void
 }
 
